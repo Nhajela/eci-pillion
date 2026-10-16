@@ -6,7 +6,7 @@ const display = Fredoka({ subsets: ["latin"], variable: "--font-display", weight
 const body = Nunito({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.PUBLIC_ORIGIN ?? "https://pillion.positivesumexperiments.com"),
+  metadataBase: new URL(process.env.PUBLIC_ORIGIN ?? "https://housefulloflove.com"),
   title: "Pillion · scooty rides across the village",
   description:
     "Your scooty has a lonely back seat. Share rides across Mandrem, earn kaju, win small daily prizes. Edge City India 2026.",
