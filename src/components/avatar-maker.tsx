@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { loadAvatar, saveAvatar, SCOOTY_COLOURS } from "./avatar-store";
+import { loadAvatar, saveAvatar, SCOOTY_COLOURS, type Avatar } from "./avatar-store";
+import { act } from "./act";
 
 const INKS = ["#3b2418", "#ff6b35", "#ff7eb6", "#ffd23f", "#4fb3b0", "#3f9b5a", "#5b8def", "#ffffff"];
 const SIZE = 280;
 
-export function AvatarMaker() {
+export function AvatarMaker({ account }: { account?: Partial<Avatar> } = {}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -26,7 +27,7 @@ export function AvatarMaker() {
     const ctx = canvas.current?.getContext("2d");
     if (!ctx) return;
     paper(ctx);
-    const prev = loadAvatar();
+    const prev = account?.drawing ? { name: account.name ?? "", scooty: account.scooty ?? SCOOTY_COLOURS[0], drawing: account.drawing, savedAt: 0 } : loadAvatar();
     if (prev) {
       setName(prev.name);
       setScooty(prev.scooty);
@@ -64,14 +65,25 @@ export function AvatarMaker() {
     setDirty(false);
   };
 
-  const save = () => {
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
     const c = canvas.current;
     if (!c) return;
     // keep it small: it rides around in localStorage today and to the server later
     const small = document.createElement("canvas");
     small.width = small.height = 128;
     small.getContext("2d")?.drawImage(c, 0, 0, 128, 128);
-    saveAvatar({ name: name.trim().slice(0, 24), drawing: small.toDataURL("image/png"), scooty, savedAt: Date.now() });
+    const a = { name: name.trim().slice(0, 24), drawing: small.toDataURL("image/png"), scooty, savedAt: Date.now() };
+    saveAvatar(a);
+    if (account) {
+      try {
+        await act({ action: "me", avatar: a.drawing, scooty: a.scooty, ...(a.name ? { name: a.name } : {}) });
+        setError(null);
+      } catch (e) {
+        setError((e as Error).message);
+        return;
+      }
+    }
     setSaved(true);
     setDirty(false);
   };
@@ -138,7 +150,7 @@ export function AvatarMaker() {
           </button>
         </div>
         <p className="maker-note" role="status">
-          {saved ? "Saved in this browser. Your avatar's parked here till the bot arrives. Scroll up: you're on the map." : " "}
+          {error ?? (saved ? (account ? "Saved to your Pillion. You're on the map! 🛵" : "Saved in this browser. Your avatar's parked here till you log in. Scroll up: you're on the map.") : "\u00a0")}
         </p>
       </div>
     </div>

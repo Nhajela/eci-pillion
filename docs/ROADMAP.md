@@ -3,9 +3,9 @@
 | # | Release | Status | What makes it useful on its own |
 |---|---|---|---|
 | 1 | Landing page + avatar maker + toy village map | live | Explains the game, gets people drawing avatars before anything else exists |
-| 2 | Telegram login | next | Avatar attached to a real village member; we can count who's in |
-| 3 | Bot sign-up, plans, ride-now, floaters, matching, kaju ledger | then | Actual rides |
-| 4 | Daily prizes + leaderboard | after | Many small winners every evening |
+| 2 | Telegram login | built; live when the bot token is set | Avatar attached to a real village member; we can count who's in |
+| 3 | Bot sign-up, plans, ride-now, floaters, matching, kaju ledger | built; live with the bot | Actual rides |
+| 4 | Daily prizes + leaderboard | built; /today is live, 9pm post needs ANNOUNCE_CHAT_ID | Many small winners every evening |
 
 ## Open questions for later releases
 - Bot persona: whimsical, rhyming announcements (samples in `docs/copy.md` §8). Plain commands first, LLM chat optional.

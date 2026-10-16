@@ -5,16 +5,29 @@ Pilots (have a scooty), hitchers (want a ride), floaters (share live location, "
 **kaju**; early plans earn more than ride-now alerts; last-minute cancels cost a little; floaters earn most.
 
 ## Shipping in increments
-Each release must be useful on its own. Roadmap and status: `docs/ROADMAP.md`.
-1. Landing page + avatar maker (avatar saved in localStorage, key `pillion.avatar.v1`). **Live.**
-2. Telegram login (carry the local avatar into the account).
-3. Bot sign-up (name, vehicle, usual seats), plans, ride-now alerts, floaters, matching, kaju ledger.
-4. Daily prizes (many small winners).
+Each release must be useful on its own. Roadmap and status: `docs/ROADMAP.md`. Game rules: `docs/SPEC.md`.
+
+## Architecture
+- `src/services/*`: all game rules. Functions take `(db, notifier, user, …, now)`; pure rules live in `src/lib`
+  (`kaju.ts`, `match.ts`, `time.ts`, `places.ts`). Throw `GameError` for things a person did wrong.
+- Every Telegram message goes through a `Notifier` (`src/bot/telegram.ts`), sent **after** the transaction commits.
+  Tests use `memoryNotifier()`; never call Telegram from tests.
+- Adapters are thin: the bot (`src/bot/handle.ts`), `/api/act` (one endpoint for every web button), `/api/telegram`
+  (webhook), login routes. No rules in adapters.
+- `src/instrumentation.ts` runs migrations at startup and ticks every minute (`services/ticker.ts`); scheduled
+  messages are made idempotent with `sent_keys`.
+- Kaju is an append-only ledger, unique per (user, reason, ref). Never update or delete kaju rows.
+- Telegram features are off until `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` are set (`botEnabled()`).
+- Bot copy pool: `src/bot/lines.ts` (`pick()`). Values passed in must already be HTML-escaped (`esc`).
+
+## Tests
+`pnpm test-db` once (local throwaway Postgres on 127.0.0.1:5549), then `pnpm test`. Schema change: edit
+`src/db/schema.ts`, then `pnpm db:generate --name <what>`; never edit applied migrations.
 
 ## Always
 - pnpm only. Node 22. TypeScript stays on 5.x (TS 7 breaks `next build` on Next 15).
 - Never read `.env` files. Never print secrets.
-- Before committing: `pnpm typecheck` and `pnpm build`.
+- Before committing: `pnpm test`, `pnpm typecheck` and `pnpm build`.
 - Times shown to people are IST (Asia/Kolkata).
 - Phone-first (390px). Tap targets ≥ 44px. Respect `prefers-reduced-motion`.
 - Tone is the village, not a SaaS: warm, playful, short. Copy source: `docs/copy.md`.

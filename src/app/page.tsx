@@ -2,6 +2,10 @@ import { AvatarMaker } from "@/components/avatar-maker";
 import { EarlySlider } from "@/components/early-slider";
 import { Ticker } from "@/components/ticker";
 import { VillageMap } from "@/components/village-map";
+import { currentUser } from "@/lib/auth";
+import { botEnabled, env } from "@/lib/env";
+
+export const dynamic = "force-dynamic";
 
 const ROLES = [
   {
@@ -43,11 +47,11 @@ const PRIZES = [
   ["Mystery Kaju", "Picked at random from everyone who rode today. Just show up."],
 ];
 
-const ROADMAP = [
-  ["This page + your avatar", "live now", "Draw yourself. It's saved in your browser and comes with you when the bot arrives."],
-  ["Telegram login", "next", "Your avatar meets your Telegram name. Now the village knows you."],
-  ["Sign-up, first rides, first kaju", "then", "Pilots post, hitchers hop, floaters float. The map wakes up."],
-  ["Daily prizes", "after that", "The jar opens. Many winners, every evening."],
+const ROADMAP = (live: boolean) => [
+  ["This page + your avatar", "live now", "Draw yourself. It's saved in your browser and comes with you when you log in."],
+  ["Telegram login", live ? "live now" : "built, bot waking up", "Your avatar meets your Telegram name. Now the village knows you."],
+  ["Sign-up, rides, floating, kaju", live ? "live now" : "built, bot waking up", "Pilots post, hitchers hop, floaters float. The map wakes up."],
+  ["Daily prizes", live ? "live now" : "built, bot waking up", "Every evening at 9, many small winners."],
 ];
 
 const FAQ = [
@@ -59,7 +63,9 @@ const FAQ = [
   ["Is it safe?", "Rides are only between village members, verified through Telegram. Wear a helmet. Ride with people from here. That's the whole safety talk."],
 ];
 
-export default function Home() {
+export default async function Home() {
+  const user = await currentUser();
+  const live = botEnabled();
   return (
     <main>
       <header className="hero">
@@ -72,9 +78,16 @@ export default function Home() {
             kaju. Kaju wins prizes. Nobody&apos;s late to Arambol.
           </p>
           <div className="hero-ctas">
-            <a className="btn" href="#avatar">Make my avatar</a>
-            <a className="btn ghost" href="#how">How it works</a>
+            {user ? (
+              <a className="btn" href="/home">Open my Pillion</a>
+            ) : live ? (
+              <a className="btn" href="/login">Join on Telegram</a>
+            ) : (
+              <a className="btn" href="#avatar">Make my avatar</a>
+            )}
+            <a className="btn ghost" href={user || live ? "#avatar" : "#how"}>{user || live ? "Draw my avatar" : "How it works"}</a>
           </div>
+          {live && !user && <p className="hint">Or say hi to <a href={`https://t.me/${env.botUsername()}`}>@{env.botUsername()}</a> directly.</p>}
         </div>
       </header>
 
@@ -161,8 +174,8 @@ export default function Home() {
         <h2 id="road-h">What&apos;s live, what&apos;s next</h2>
         <p className="lede">We ship in small, honest steps. Each one is useful on its own.</p>
         <ol>
-          {ROADMAP.map(([title, when, body], i) => (
-            <li key={title} className={i === 0 ? "live" : ""}>
+          {ROADMAP(live).map(([title, when, body]) => (
+            <li key={title} className={when === "live now" ? "live" : ""}>
               <span className="when">{when}</span>
               <b>{title}</b>
               <span>{body}</span>

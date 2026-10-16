@@ -2,6 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useAvatar } from "./avatar-store";
+import { PLACES, placeById } from "@/lib/places";
+
+export type MapPerson = { id: number; name: string; avatar: string | null; scooty: string; floatAt?: string };
 
 // A toy map of the village (not to scale, west is the sea). Avatars ride along the lanes.
 const LANES = [
@@ -12,19 +15,11 @@ const LANES = [
   "M300 500 C 480 520, 650 520, 860 470",
 ];
 
-const PLACES = [
-  { x: 120, y: 90, label: "Arambol" },
-  { x: 880, y: 120, label: "Riva" },
-  { x: 470, y: 230, label: "The Circle" },
-  { x: 160, y: 330, label: "Mandrem beach" },
-  { x: 300, y: 500, label: "Ashwem" },
-  { x: 860, y: 470, label: "Morjim" },
-  { x: 650, y: 335, label: "Chai stall" },
-];
+
 
 type Rider = {
   lane: number; speed: number; offset: number; scooty: string; face: string;
-  hitcher?: string; mine?: boolean;
+  hitcher?: string; mine?: boolean; drawing?: string | null; label?: string;
 };
 
 const RIDERS: Rider[] = [
@@ -58,7 +53,7 @@ function Scooty({ colour }: { colour: string }) {
   );
 }
 
-export function VillageMap() {
+export function VillageMap({ people }: { people?: MapPerson[] } = {}) {
   const svg = useRef<SVGSVGElement>(null);
   const avatar = useAvatar();
 
@@ -91,10 +86,18 @@ export function VillageMap() {
     return () => cancelAnimationFrame(frame);
   }, [avatar]);
 
-  const mine: Rider | null = avatar
-    ? { lane: 3, speed: 0.055, offset: 0.2, scooty: avatar.scooty, face: "", mine: true }
+  const real = people?.length ? people : null;
+  const mine: Rider | null = avatar && !real
+    ? { lane: 3, speed: 0.055, offset: 0.2, scooty: avatar.scooty, face: "", mine: true, drawing: avatar.drawing, label: avatar.name }
     : null;
-  const all = mine ? [...RIDERS, mine] : RIDERS;
+  const riders: Rider[] = real
+    ? real.filter((p) => !p.floatAt).map((p, i) => ({
+        lane: p.id % LANES.length, speed: 0.035 + ((p.id * 7) % 5) * 0.008, offset: (i * 0.37) % 1,
+        scooty: p.scooty, face: "#e8b894", mine: Boolean(p.avatar), drawing: p.avatar, label: p.name,
+      }))
+    : mine ? [...RIDERS, mine] : RIDERS;
+  const floaters = real?.filter((p) => p.floatAt) ?? [];
+  const all = riders;
 
   return (
     <svg ref={svg} viewBox="0 0 1000 600" className="village-map" role="img"
@@ -125,10 +128,10 @@ export function VillageMap() {
       {all.map((r, i) => (
         <g key={i} data-rider data-lane={r.lane} data-speed={r.speed} data-offset={r.offset}>
           <Scooty colour={r.scooty} />
-          {r.mine && avatar ? (
+          {r.mine && r.drawing ? (
             <g data-face transform="translate(-2,-30)">
               <circle r="17" fill="#fff" stroke="#3b2418" strokeWidth="3" />
-              <image href={avatar.drawing} x="-15" y="-15" width="30" height="30" clipPath="url(#face-clip)" />
+              <image href={r.drawing} x="-15" y="-15" width="30" height="30" clipPath="url(#face-clip)" />
             </g>
           ) : (
             <>
@@ -139,14 +142,29 @@ export function VillageMap() {
         </g>
       ))}
       {PLACES.map((p) => (
-        <g key={p.label} transform={`translate(${p.x},${p.y})`}>
+        <g key={p.id} transform={`translate(${p.map.x},${p.map.y})`}>
           <circle r="11" fill="#fff6e6" stroke="#3b2418" strokeWidth="3" />
           <circle r="4" fill="#ff7eb6" />
-          <text y="-18" textAnchor="middle" className="map-label">{p.label}</text>
+          <text y="-18" textAnchor="middle" className="map-label">{p.name}</text>
         </g>
       ))}
-      {avatar && (
-        <g transform="translate(830,560)">
+      {floaters.map((f, i) => {
+        const p = placeById(f.floatAt!)!;
+        const dx = ((i % 3) - 1) * 34;
+        return (
+          <g key={`f${f.id}`} className="floater" transform={`translate(${p.map.x + dx},${p.map.y + 34})`}>
+            <title>{`${f.name} is floating near ${p.name}`}</title>
+            <circle r="22" fill="#ffd23f" opacity="0.35" className="float-glow" />
+            <Scooty colour={f.scooty} />
+            <g transform="translate(-2,-30)">
+              <circle r="17" fill="#fff" stroke="#3b2418" strokeWidth="3" />
+              {f.avatar ? <image href={f.avatar} x="-15" y="-15" width="30" height="30" clipPath="url(#face-clip)" /> : <Head x={0} colour="#e8b894" id="floater" />}
+            </g>
+          </g>
+        );
+      })}
+      {avatar && !real && (
+        <g transform="translate(500,40)">
           <rect x="-140" y="-22" width="290" height="38" rx="19" fill="#3b2418" />
           <text x="5" y="3" textAnchor="middle" className="map-you">
             {`${avatar.name || "You"} is on the map ✨`}
