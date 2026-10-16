@@ -7,16 +7,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test-db": "docker start pillion-test-pg || docker run -d --name pillion-test-pg -e POSTGRES_PASSWORD=test -e POSTGRES_DB=pillion_test -p 127.0.0.1:5549:5432 postgres:18",
+    "db:generate": "drizzle-kit generate",
+    "setup-bot": "node scripts/setup-bot.mjs"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.4",
     "next": "^15.5.28",
+    "postgres": "^3.4.9",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
-    "typescript": "^5.9.3"
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }
