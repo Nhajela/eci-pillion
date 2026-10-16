@@ -104,7 +104,7 @@ export default function Home() {
 
       <section className="kaju" aria-labelledby="kaju-h">
         <div className="kaju-head">
-          <img src="/art/kaju.webp" alt="" width={160} height={160} loading="lazy" />
+          <img src="/art/kaju.svg" alt="" width={160} height={160} loading="lazy" />
           <div>
             <h2 id="kaju-h">Kaju: the village currency</h2>
             <p className="lede">Goa is cashew country, so we pay in cashews. Pretend ones. Every bit of joining in earns some.</p>
@@ -148,7 +148,7 @@ export default function Home() {
             <h2 id="prizes-h">Daily prizes, lots of them</h2>
             <p className="lede">Every evening, many small winners. Never one big one. Exact prizes to be revealed: we&apos;re still choosing between things you can eat and things you can keep.</p>
           </div>
-          <img src="/art/prizes.webp" alt="" width={480} height={360} loading="lazy" />
+          <img src="/art/prizes.webp" alt="" width={768} height={429} loading="lazy" />
         </div>
         <ul className="prize-list">
           {PRIZES.map(([name, line]) => (

@@ -82,6 +82,8 @@ export function VillageMap() {
         const b = lane.getPointAtLength(Math.min(len, p * len + 1));
         const facingLeft = raw > 1 ? b.x > a.x : b.x < a.x;
         g.setAttribute("transform", `translate(${a.x},${a.y - 6}) scale(${facingLeft ? -1.5 : 1.5},1.5)`);
+        // keep a drawn face readable: undo the mirror on it
+        g.querySelector("[data-face]")?.setAttribute("transform", `translate(-2,-30) scale(${facingLeft ? -1 : 1},1)`);
       }
       frame = requestAnimationFrame(tick);
     };
@@ -124,7 +126,7 @@ export function VillageMap() {
         <g key={i} data-rider data-lane={r.lane} data-speed={r.speed} data-offset={r.offset}>
           <Scooty colour={r.scooty} />
           {r.mine && avatar ? (
-            <g transform="translate(-2,-30)">
+            <g data-face transform="translate(-2,-30)">
               <circle r="17" fill="#fff" stroke="#3b2418" strokeWidth="3" />
               <image href={avatar.drawing} x="-15" y="-15" width="30" height="30" clipPath="url(#face-clip)" />
             </g>
