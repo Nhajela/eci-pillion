@@ -6,5 +6,8 @@
 - **Domain:** https://pillion.housefulloflove.com. Cloudflare zone `housefulloflove.com`: A `pillion` → 170.187.250.12,
   grey cloud while Let's Encrypt issues. The apex keeps its own redirect; don't touch it.
   Fallback that needs no DNS: https://pillion.170.187.250.12.sslip.io.
-- No env vars or secrets yet (release 1 is static). Release 2 adds `PILLION_TELEGRAM_BOT_TOKEN` etc., stored in
-  serenity `secrets` under the `PILLION_` prefix and in Coolify env vars.
+- **Database:** Coolify Postgres `eci-pillion-db` (`z8aw1lcf3mufcoyb27wukvs3`, postgres:18-alpine, internal only).
+  Migrations run on app start (`src/instrumentation.ts`). **No backups yet** (serenity has none configured).
+- **Env vars (Coolify, app):** `DATABASE_URL`, `SESSION_SECRET`, `TELEGRAM_WEBHOOK_SECRET` (generated, never printed),
+  `PUBLIC_ORIGIN`. To switch the bot on, add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME`, redeploy, then run
+  `scripts/setup-bot.mjs` with the same token, webhook secret and origin. Optional: `ANNOUNCE_CHAT_ID`, `VERIFY_CHAT_IDS`.
