@@ -59,8 +59,15 @@ describe("the bot", () => {
     expect(tg.calls.filter((c) => c.method === "answerCallbackQuery").at(-1)!.params.text).toContain("taking them");
 
     // floating
+    // Ben has no wheels: no floating for him
     await handleUpdate(ctx(10), { message: { chat: { id: 2, type: "private" }, from: { id: 2, first_name: "Ben" }, location: { latitude: 15.645, longitude: 73.717, live_period: 3600 } } });
+    expect(tg.texts().at(-1)).toContain("for people with wheels");
+    // Asha floats near Ashwem
+    await handleUpdate(ctx(10), { message: { chat: { id: 1, type: "private" }, from: { id: 1, first_name: "Asha" }, location: { latitude: 15.645, longitude: 73.717, live_period: 3600 } } });
     expect(tg.texts().at(-1)).toContain("floating near <b>Ashwem</b>");
+    // and from Panjim it doesn't count
+    await handleUpdate(ctx(11), { message: { chat: { id: 1, type: "private" }, from: { id: 1, first_name: "Asha" }, location: { latitude: 15.4909, longitude: 73.8278 } } });
+    expect(tg.texts().at(-1)).toContain("outside the village");
   });
 
   it("keeps outsiders out when a village chat is configured", async () => {

@@ -88,50 +88,6 @@ describe("a day in Pillion", () => {
     expect(res).toMatchObject({ minutes: 95, got: 30 });
   });
 
-  it("a floater who drops a pickup loses 10 and that hour of float kaju", async () => {
-    const db = await testDb();
-    const n = notifier();
-    const floater = await person(db, "Kabir", "scooty");
-    const hitcher = await person(db, "Priya");
-    await locate(db, n, floater, { lat: 15.6509, lng: 73.7165, livePeriod: 3600 * 4 }, T0);
-    const req = await createPlan(db, n, hitcher, { kind: "request", fromPlace: "circle", toPlace: "mapusa", departAt: at(60) }, at(1));
-    const ride = await takeRequest(db, n, floater, req.plan.id, at(2));
-    const res = await cancelRide(db, n, floater, ride.id, at(5)); // early, but floaters pay anyway
-    expect(res.floater).toBe(true);
-    expect(await balance(db, floater.id)).toBe(-10);
-    const [reopened] = await db.select().from(plans).where(eq(plans.id, req.plan.id));
-    expect(reopened.status).toBe("open");
-    const stop = await stopFloat(db, n, floater, at(95)); // 95 min floated, 60 forfeited → 35 → 10 kaju
-    expect(stop).toMatchObject({ minutes: 95, got: 10 });
-    expect(await balance(db, floater.id)).toBe(0);
-  });
-
-  it("if the float was already paid, the hour is taken back", async () => {
-    const db = await testDb();
-    const n = notifier();
-    const floater = await person(db, "Lia", "scooty");
-    const hitcher = await person(db, "Omar");
-    await locate(db, n, floater, { lat: 15.6509, lng: 73.7165, livePeriod: 3600 * 4 }, T0);
-    const req = await createPlan(db, n, hitcher, { kind: "request", fromPlace: "circle", toPlace: "ashwem", departAt: at(120) }, at(1));
-    const ride = await takeRequest(db, n, floater, req.plan.id, at(2));
-    await stopFloat(db, n, floater, at(95)); // paid 30
-    await cancelRide(db, n, floater, ride.id, at(100));
-    expect(await balance(db, floater.id)).toBe(30 - 10 - 20);
-  });
-
-  it("a hitcher cancelling a floater's pickup gets the normal rule", async () => {
-    const db = await testDb();
-    const n = notifier();
-    const floater = await person(db, "Sam", "scooty");
-    const hitcher = await person(db, "Ira");
-    await locate(db, n, floater, { lat: 15.6509, lng: 73.7165, livePeriod: 3600 }, T0);
-    const req = await createPlan(db, n, hitcher, { kind: "request", fromPlace: "circle", toPlace: "ashwem", departAt: at(20) }, at(1));
-    const ride = await takeRequest(db, n, floater, req.plan.id, at(2));
-    await cancelRide(db, n, hitcher, ride.id, at(10));
-    expect(await balance(db, hitcher.id)).toBe(5 - 5); // +5 ride-now plan, −5 late cancel
-    expect(await balance(db, floater.id)).toBe(0);
-  });
-
   it("cars offer several seats and each passenger is a ride", async () => {
     const db = await testDb();
     const n = notifier();

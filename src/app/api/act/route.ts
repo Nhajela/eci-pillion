@@ -10,7 +10,7 @@ import { istDay, istTimeToday } from "@/lib/time";
 import { cancelPlan, createPlan, GameError } from "@/services/plans";
 import { cancelRide, confirmRide, hopOn, takeRequest } from "@/services/rides";
 import { stopFloat } from "@/services/floats";
-import { updateUser, validAvatar, validColour } from "@/services/users";
+import { getUser, updateUser, validAvatar, validColour } from "@/services/users";
 
 // One endpoint for every button on the site. Each action maps to one service call.
 const Body = z.discriminatedUnion("action", [
@@ -61,6 +61,8 @@ export async function POST(req: Request) {
       }
       case "heart": {
         if (b.id === user.id) throw new GameError("Self-love is great, but hearts are for others. 💛");
+        const target = await getUser(db(), b.id);
+        if (!target?.avatar) throw new GameError("They haven't drawn an avatar yet.");
         await db().insert(hearts).values({ fromId: user.id, toId: b.id, day: istDay(now) }).onConflictDoNothing();
         break;
       }

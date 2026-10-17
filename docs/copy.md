@@ -57,7 +57,7 @@ Floating is for the day you have nowhere to be. Turn on live location in Telegra
 | Complete a ride as hitcher | +10 | You brought the company. Also respect. |
 | Float for an hour | +20 | Every hour. Nap on the beach, get rich. |
 | Cancel last-minute | −5 | Not a punishment. Someone just checked their phone twice. |
-| Floater drops a pickup | −10 | And no float kaju for that hour. Floaters are the village's promise. |
+| Floater turns down a request | −10 | And that hour isn't paid. If you say no, you weren't really floating. |
 
 Kaju is fake. The prizes are not.
 

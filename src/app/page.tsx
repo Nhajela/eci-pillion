@@ -24,7 +24,7 @@ const ROLES = [
     key: "floater",
     title: "Floater",
     tag: "The hero of the story. Also: not doing much.",
-    body: "Got nowhere to be? Share your live location on Telegram, tell the bot “I'm around, ping me,” and go lie on the sand. When someone needs a ride, you're the nearest answer. You're not giving up your plans, you're giving the village your lack of them. Aimlessness, donated. That's why floaters earn the most kaju. Susegad, but make it useful.",
+    body: "Got nowhere to be? Share your live location on Telegram, tell the bot “I'm around, ping me,” and go lie on the sand. When someone needs a ride, you're the nearest answer. You're not giving up your plans, you're giving the village your lack of them. Aimlessness, donated. That's why floaters earn the most kaju. The one rule: floaters say yes. Turn down a nearby request and you weren't really floating (−10, and that hour's on us, not you). Susegad, but make it useful.",
   },
 ];
 
@@ -34,9 +34,9 @@ const KAJU = [
   ["Ride-now alert", "+5", "Spontaneity is still a virtue. A smaller one."],
   ["Complete a ride as pilot", "+30", "You brought the Activa. Respect."],
   ["Complete a ride as hitcher", "+10", "You brought the company. Also respect."],
-  ["Float for an hour", "+20", "Every hour. Nap on the beach, get rich."],
+  ["Float for an hour", "+20", "Every hour, 7am to 11pm. Nap on the beach, get rich."],
   ["Cancel last-minute", "−5", "Not a punishment. Someone just checked their phone twice."],
-  ["Floater drops a pickup", "−10", "And no float kaju for that hour. Floaters are the village's promise."],
+  ["Floater turns down a request", "−10", "And that hour isn't paid. If you say no, you weren't really floating. Busy? Stop floating first."],
 ];
 
 const PRIZES = [

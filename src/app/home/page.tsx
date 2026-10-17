@@ -67,7 +67,7 @@ export default async function Home() {
             {upcoming.map((r) => (
               <div key={`r${r.id}`} className="line">
                 <span>🛵 <b>{istHHMM(r.departAt)}</b> {placeName(r.fromPlace)} → <b>{placeName(r.toPlace)}</b>, {r.pilotId === user.id ? "taking" : "riding with"} {nameOf(r.pilotId === user.id ? r.hitcherId : r.pilotId)}</span>
-                <ActButton body={{ action: "cancelRide", id: r.id }} className="btn small ghost" confirm={r.viaFloat && r.pilotId === user.id ? "Cancel this pickup? Floaters who cancel lose 10 kaju and this hour's float kaju." : "Cancel this ride? Inside 30 minutes it costs 5 kaju."}>Can&apos;t make it</ActButton>
+                <ActButton body={{ action: "cancelRide", id: r.id }} className="btn small ghost" confirm="Cancel this ride? Inside 30 minutes it costs 5 kaju.">Can&apos;t make it</ActButton>
               </div>
             ))}
             {mine.filter((p) => p.status === "open").map((p) => (
@@ -111,7 +111,7 @@ export default async function Home() {
               <ActButton body={{ action: "stopFloat" }} className="btn small ghost">Stop</ActButton>
             </div>
           ) : (
-            <p>Nowhere to be? In <a href={`https://t.me/${env.botUsername()}`}>the bot</a>, tap 📎 → Location → <b>Share My Live Location</b>. We&apos;ll ping you when someone nearby needs a ride. Floaters earn the most.</p>
+            <p>Nowhere to be? In <a href={`https://t.me/${env.botUsername()}`}>the bot</a>, tap 📎 → Location → <b>Share My Live Location</b>. We&apos;ll ping you when someone nearby needs a ride. Floaters earn the most, and floaters say yes: turning down a nearby request ends your float and costs 10 kaju.</p>
           )}
           {floats.filter((f) => f.u.id !== user.id).length > 0 && (
             <p className="hint">Floating now: {floats.filter((f) => f.u.id !== user.id).map((f) => `${f.u.name} (near ${nearestPlace(f.f).place.name})`).join(", ")}</p>

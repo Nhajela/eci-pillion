@@ -10,8 +10,10 @@ export const KAJU = {
   floatPer15: 5,
   floatMaxPerDay: 120,
   lateCancel: -5,
-  floaterCancel: -10, // a floater who drops a pickup: −10, and no float kaju for that hour
-  floaterCancelForfeitMin: 60,
+  floaterRefusal: -10, // a floater who refuses (or ignores) a nearby request: −10, the last hour unpaid, float ends
+  floaterRefusalForfeitMin: 60,
+  floaterAnswerMin: 10, // minutes a pinged floater has to answer before it counts as a refusal
+  pairRidesPerDay: 2, // the same pilot + hitcher are paid for at most 2 rides a day (no ride farming)
   lateCancelWindowMin: 30,
 } as const;
 

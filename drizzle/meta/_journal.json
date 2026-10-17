@@ -15,6 +15,13 @@
       "when": 1792201515000,
       "tag": "0001_float_forfeit",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792201960887,
+      "tag": "0002_floater_duty",
+      "breakpoints": true
     }
   ]
 }

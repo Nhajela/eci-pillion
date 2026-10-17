@@ -9,11 +9,11 @@ import { balance, history, REASON_LABEL } from "@/services/kaju";
 import { claimLogin, magicCode } from "@/services/login";
 import { cancelPlan, createPlan, GameError } from "@/services/plans";
 import { cancelRide, confirmRide, hopOn, myRides, takeRequest } from "@/services/rides";
-import { locate, stopFloat } from "@/services/floats";
+import { locate, refuseRequest, stillHere, stopFloat } from "@/services/floats";
 import { finishOnboarding, getUser, updateUser, upsertTelegramUser, type TgUser } from "@/services/users";
 import { esc, keyboard, type Button, type Call, type Notifier } from "./telegram";
 
-type Msg = { chat: { id: number; type: string }; from?: TgUser; text?: string; location?: { latitude: number; longitude: number; live_period?: number } };
+type Msg = { chat: { id: number; type: string }; from?: TgUser; text?: string; edit_date?: number; location?: { latitude: number; longitude: number; live_period?: number } };
 export type Update = {
   message?: Msg;
   edited_message?: Msg;
@@ -128,7 +128,7 @@ async function kajuInfo(ctx: Ctx, chatId: number, user: User) {
 }
 
 const FLOAT_HELP =
-  "🌴 <b>Float</b>: tap 📎 → <b>Location</b> → <b>Share My Live Location</b> (pick 8 hours if you like).\n\nWhile it's on, I'll ping you when someone near you needs a ride. You earn 5 kaju every 15 minutes, just for being around. Stop any time with /stop.";
+  "🌴 <b>Float</b>: tap 📎 → <b>Location</b> → <b>Share My Live Location</b>.\n\nWhile it's on, I'll ping you when someone near you needs a ride, and you earn 5 kaju every 15 minutes (7am–11pm).\n\n<b>The deal:</b> floaters say yes. If you turn down (or ignore) a nearby request, you weren't really floating: −10 kaju, the last hour isn't paid, and your float ends. Busy? Just /stop first, no penalty.";
 
 export async function handleUpdate(ctx: Ctx, u: Update) {
   if (u.callback_query) return onButton(ctx, u.callback_query);
@@ -159,8 +159,10 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
   if (m.location) {
     const live = m.location.live_period ?? null;
     const res = await locate(ctx.db, ctx.n, user, { lat: m.location.latitude, lng: m.location.longitude, livePeriod: live }, ctx.now);
+    if ("noWheels" in res) return say(ctx, chatId, "Floating is for people with wheels, so you can pick folks up. Got some? Tell me with /wheels.");
+    if ("outside" in res && !m.edit_date) return say(ctx, chatId, "That's outside the village map, so it doesn't count as floating. Come back to Mandrem and share again! 🌴");
     if (res.started) {
-      await say(ctx, chatId, `🌴 You're floating near <b>${res.near}</b>${live ? "" : " for the next hour (share a <b>live</b> location to float longer)"}. I'll ping you when someone nearby needs a ride. /stop to stop.`);
+      await say(ctx, chatId, `🌴 You're floating near <b>${res.near}</b>${live ? "" : " for the next hour (share a <b>live</b> location to float longer)"}. I'll ping you when someone nearby needs a ride.\n<i>Floaters say yes: turning down a request ends your float and costs 10 kaju. Not free any more? /stop first, no penalty.</i>`);
     }
     return;
   }
@@ -248,12 +250,22 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       toast = `You're on! ${placeName(r.toPlace)} around ${istHHMM(r.departAt)}.`;
     } else if (a === "done") {
       const r = await confirmRide(ctx.db, ctx.n, user, Number(b), c === "y", ctx.now);
-      toast = r.already ? "Already sorted, thanks!" : r.done ? "Kaju delivered! 🥜" : "Okay, marked as not happened. No harm done.";
+      toast = r.already
+        ? "Already sorted, thanks!"
+        : r.done
+          ? r.capped ? "Ride counted! (You two have had today's kaju for rides together already.)" : "Kaju delivered! 🥜"
+          : "Okay, noted. If the other person says it happened, it still counts.";
     } else if (a === "cxr") {
       const r = await cancelRide(ctx.db, ctx.n, user, Number(b), ctx.now);
-      toast = r.floater
-        ? "Cancelled. As a floater that's −10 kaju and no float kaju for this hour: someone nearby was counting on you."
-        : r.late ? "Cancelled. −5 kaju (they were counting on you). It's okay, life happens." : "Cancelled, no kaju lost. Thanks for the heads-up!";
+      toast = r.late ? "Cancelled. −5 kaju (they were counting on you). It's okay, life happens." : "Cancelled, no kaju lost. Thanks for the heads-up!";
+    } else if (a === "nope") {
+      const r = await refuseRequest(ctx.db, ctx.n, user, Number(b), ctx.now);
+      toast = `Float ended. ${r.lost} kaju. Come back when you're free! 🌴`;
+    } else if (a === "still") {
+      toast = (await stillHere(ctx.db, user, ctx.now)) ? "Great, still floating! 🌴" : "Your float already ended. Share a live location to start again.";
+    } else if (a === "stopfloat") {
+      const r = await stopFloat(ctx.db, ctx.n, user, ctx.now);
+      toast = r ? `Float ended after ${r.minutes} min. +${r.got} kaju.` : "You weren't floating.";
     } else if (a === "cxp") {
       await cancelPlan(ctx.db, ctx.n, user, Number(b), ctx.now);
       toast = "Plan cancelled.";
@@ -269,6 +281,9 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
 async function onboarded(ctx: Ctx, chatId: number, user: User) {
   const got = await finishOnboarding(ctx.db, user.id, ctx.now);
   const link = await webLink(ctx, user, "/avatar");
+  if (!user.username) {
+    await say(ctx, chatId, "Tip: set a Telegram <b>username</b> (Settings → Username) so the people you ride with can message you to sort the pickup.");
+  }
   await say(
     ctx,
     chatId,

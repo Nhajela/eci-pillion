@@ -40,7 +40,7 @@ export const REASON_LABEL: Record<string, string> = {
   ride_hitcher: "Took a ride",
   float: "Floated",
   late_cancel: "Cancelled last-minute",
-  floater_cancel: "Dropped a pickup while floating",
-  float_forfeit: "Float hour forfeited",
+  floater_refusal: "Turned down a request while floating",
+  plan_cancel: "Cancelled a plan (kaju back)",
   prize: "Daily prize",
 };

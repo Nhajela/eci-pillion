@@ -1,26 +1,28 @@
 import { and, eq, gt, gte, lt } from "drizzle-orm";
 import type { Db } from "@/db";
-import { rides, sentKeys, users } from "@/db/schema";
+import { rides, users } from "@/db/schema";
 import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { placeName } from "@/lib/places";
 import { istDay, istDayStart, istHHMM, istMinuteOfDay } from "@/lib/time";
-import { closeExpiredFloats } from "./floats";
+import { checkQuietFloats, closeExpiredFloats, resolvePings } from "./floats";
+import { expireRides } from "./rides";
 import { expirePlans } from "./plans";
 import { awardWinners, computeWinners, namesFor, PRIZE_KAJU, PRIZES } from "./prizes";
 
-/** Claim a once-only key. True the first time only. */
-export async function once(db: Db, key: string) {
-  const r = await db.insert(sentKeys).values({ key }).onConflictDoNothing().returning();
-  return r.length > 0;
-}
+export { once } from "./once";
+import { once } from "./once";
 
 export async function tick(db: Db, n: Notifier, now: Date) {
+  await resolvePings(db, n, now);
+  await checkQuietFloats(db, n, now);
   await closeExpiredFloats(db, n, now);
   await expirePlans(db, now);
+  await expireRides(db, now);
 
   // 15 min heads-up for matched rides
-  const soon = await db.select().from(rides).where(and(eq(rides.status, "matched"), gt(rides.departAt, now), lt(rides.departAt, new Date(now.getTime() + 15 * 60_000))));
+  // (not for rides matched in the last 5 minutes: they've only just heard about it)
+  const soon = await db.select().from(rides).where(and(eq(rides.status, "matched"), gt(rides.departAt, now), lt(rides.departAt, new Date(now.getTime() + 15 * 60_000)), lt(rides.createdAt, new Date(now.getTime() - 5 * 60_000))));
   for (const r of soon) {
     if (!(await once(db, `remind:${r.id}`))) continue;
     for (const uid of [r.pilotId, r.hitcherId]) {

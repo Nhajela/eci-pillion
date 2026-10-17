@@ -1,14 +1,14 @@
-import { and, desc, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
+import { and, eq, gt, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { floats, kaju, plans, rides, users, type Ride, type User } from "@/db/schema";
+import { floatPings, floats, plans, rides, users, type Ride, type User } from "@/db/schema";
 import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { isLateCancel, KAJU, vehicleEmoji } from "@/lib/kaju";
-import { offerFitsRequest } from "@/lib/match";
+import { MATCH_WINDOW_MIN, offerFitsRequest } from "@/lib/match";
 import { placeName } from "@/lib/places";
-import { istHHMM } from "@/lib/time";
+import { istDayStart, istHHMM } from "@/lib/time";
 import { award } from "./kaju";
-import { GameError } from "./plans";
+import { GameError } from "./errors";
 
 /** Messages to send after the transaction commits. */
 export type Effects = ((n: Notifier) => Promise<void>)[];
@@ -29,6 +29,34 @@ function matchedEffects(ride: Ride, pilot: User, hitcher: User): Effects {
   ];
 }
 
+const W = MATCH_WINDOW_MIN * 60_000;
+const around = (t: Date) => and(eq(rides.status, "matched"), gt(rides.departAt, new Date(t.getTime() - W)), lt(rides.departAt, new Date(t.getTime() + W)));
+
+/** Nobody is in two places at once: one ride at a time for hitchers and two-wheelers, seats for cars. */
+async function assertFree(tx: Tx, u: User, at: Date, role: "pilot" | "hitcher", exceptOfferId?: number | null) {
+  const mine = await tx.select().from(rides).where(and(around(at), or(eq(rides.pilotId, u.id), eq(rides.hitcherId, u.id))));
+  const asHitcher = mine.filter((r) => r.hitcherId === u.id);
+  const asPilot = mine.filter((r) => r.pilotId === u.id && (exceptOfferId == null || r.offerId !== exceptOfferId));
+  if (role === "hitcher") {
+    if (mine.length) throw new GameError(`You already have a ride around ${istHHMM(at)}. Cancel it first if plans changed.`);
+    return;
+  }
+  if (asHitcher.length) throw new GameError(`You're riding with someone else around ${istHHMM(at)}.`);
+  if (u.vehicle === "car" ? asPilot.length >= Math.max(1, u.seats) : asPilot.length > 0)
+    throw new GameError(u.vehicle === "car" ? `Your car's full around ${istHHMM(at)}.` : `Your back seat's taken around ${istHHMM(at)}. One pillion at a time!`);
+}
+
+/** After a match: the hitcher's other requests around then close, and a two-wheeler's other offers fill up. */
+async function closeOverlaps(tx: Tx, ride: Ride, pilot: User) {
+  const t = ride.departAt;
+  const win = and(eq(plans.status, "open"), gt(plans.departAt, new Date(t.getTime() - W)), lt(plans.departAt, new Date(t.getTime() + W)));
+  await tx.update(plans).set({ status: "cancelled" }).where(and(win, eq(plans.userId, ride.hitcherId), eq(plans.kind, "request"), ride.requestId ? ne(plans.id, ride.requestId) : undefined));
+  if (pilot.vehicle !== "car") {
+    await tx.update(plans).set({ status: "full" }).where(and(win, eq(plans.userId, pilot.id), eq(plans.kind, "offer"), ride.offerId ? ne(plans.id, ride.offerId) : undefined));
+    await tx.update(plans).set({ status: "cancelled" }).where(and(win, eq(plans.userId, pilot.id), eq(plans.kind, "request")));
+  }
+}
+
 async function loadUsers(tx: Tx, a: number, b: number) {
   const rows = await tx.select().from(users).where(or(eq(users.id, a), eq(users.id, b)));
   return [rows.find((u) => u.id === a)!, rows.find((u) => u.id === b)!] as const;
@@ -41,9 +69,13 @@ export async function takeRequest(db: Db, n: Notifier, pilot: User, requestId: n
     if (!req || req.kind !== "request") throw new GameError("That ride request is gone.");
     if (req.userId === pilot.id) throw new GameError("You can't give yourself a ride (we checked).");
     if (req.status !== "open") throw new GameError("Someone beat you to it! Thanks for offering 💛");
+    if (pilot.vehicle === "none") throw new GameError("You'll need wheels for that one. Set them with /wheels.");
+    const [hitcherUser] = await tx.select().from(users).where(eq(users.id, req.userId));
     // attach the pilot's own matching offer, if they posted one
     const mine = await tx.select().from(plans).where(and(eq(plans.userId, pilot.id), eq(plans.kind, "offer"), eq(plans.status, "open")));
     const offer = mine.find((o) => offerFitsRequest(o, req));
+    await assertFree(tx, pilot, req.departAt, "pilot", offer?.id);
+    await assertFree(tx, hitcherUser, req.departAt, "hitcher");
     const [float] = await tx.select().from(floats).where(and(eq(floats.userId, pilot.id), isNull(floats.endedAt), gt(floats.liveUntil, now)));
     const [ride] = await tx
       .insert(rides)
@@ -51,6 +83,8 @@ export async function takeRequest(db: Db, n: Notifier, pilot: User, requestId: n
       .returning();
     await tx.update(plans).set({ status: "full" }).where(eq(plans.id, req.id));
     if (offer) await tx.update(plans).set({ seats: offer.seats - 1, status: offer.seats - 1 > 0 ? "open" : "full" }).where(eq(plans.id, offer.id));
+    await tx.update(floatPings).set({ outcome: "took", resolvedAt: now }).where(and(eq(floatPings.userId, pilot.id), eq(floatPings.requestId, req.id), eq(floatPings.outcome, "pending")));
+    await closeOverlaps(tx, ride, pilot);
     const [p, h] = await loadUsers(tx, pilot.id, req.userId);
     return { ride, effects: matchedEffects(ride, p, h) };
   });
@@ -67,6 +101,9 @@ export async function hopOn(db: Db, n: Notifier, hitcher: User, offerId: number,
     const taken = await tx.select().from(rides).where(and(eq(rides.offerId, offerId), eq(rides.hitcherId, hitcher.id), eq(rides.status, "matched")));
     if (taken.length) throw new GameError("You're already on this one.");
     if (offer.status !== "open" || offer.seats < 1) throw new GameError("That seat just got taken. Post a request and we'll find you another!");
+    const [pilotUser] = await tx.select().from(users).where(eq(users.id, offer.userId));
+    await assertFree(tx, hitcher, offer.departAt, "hitcher");
+    await assertFree(tx, pilotUser, offer.departAt, "pilot", offer.id);
     const mine = await tx.select().from(plans).where(and(eq(plans.userId, hitcher.id), eq(plans.kind, "request"), eq(plans.status, "open")));
     const req = mine.find((r) => offerFitsRequest(offer, r));
     const [ride] = await tx
@@ -75,6 +112,7 @@ export async function hopOn(db: Db, n: Notifier, hitcher: User, offerId: number,
       .returning();
     await tx.update(plans).set({ seats: offer.seats - 1, status: offer.seats - 1 > 0 ? "open" : "full" }).where(eq(plans.id, offer.id));
     if (req) await tx.update(plans).set({ status: "full" }).where(eq(plans.id, req.id));
+    await closeOverlaps(tx, ride, pilotUser);
     const [p, h] = await loadUsers(tx, offer.userId, hitcher.id);
     return { ride, effects: matchedEffects(ride, p, h) };
   });
@@ -97,8 +135,7 @@ export async function cancelRideInTx(tx: Tx, by: User, ride: Ride, now: Date, op
     if (r?.status === "full") await tx.update(plans).set({ status: byPilot ? "open" : "cancelled" }).where(eq(plans.id, r.id));
   }
   const late = isLateCancel(ride.departAt, now);
-  if (byPilot && ride.viaFloat) await floaterCancelled(tx, by.id, ride, now);
-  else if (late) await award(tx, by.id, KAJU.lateCancel, "late_cancel", `ride:${ride.id}`, now);
+  if (late) await award(tx, by.id, KAJU.lateCancel, "late_cancel", `ride:${ride.id}`, now);
   const otherId = byPilot ? ride.hitcherId : ride.pilotId;
   const [other] = await tx.select().from(users).where(eq(users.id, otherId));
   const to = placeName(ride.toPlace);
@@ -106,22 +143,6 @@ export async function cancelRideInTx(tx: Tx, by: User, ride: Ride, now: Date, op
     ? pick(LINES.lateCancel, { name: esc(by.name) })
     : `${esc(by.name)} can't make the ${istHHMM(ride.departAt)} ride to <b>${to}</b> after all. ${byPilot ? "Your request is open again, so someone else can grab it." : "Your seat is free again."}`;
   return [(n) => n.dm({ to: other.telegramId, text })];
-}
-
-/** A floater dropped a pickup: −10, and no float kaju for that hour. */
-async function floaterCancelled(tx: Tx, userId: number, ride: Ride, now: Date) {
-  await award(tx, userId, KAJU.floaterCancel, "floater_cancel", `ride:${ride.id}`, now);
-  const [active] = await tx.select().from(floats).where(and(eq(floats.userId, userId), isNull(floats.endedAt))).for("update");
-  if (active) {
-    await tx.update(floats).set({ forfeitMinutes: active.forfeitMinutes + KAJU.floaterCancelForfeitMin }).where(eq(floats.id, active.id));
-    return;
-  }
-  // the float already ended and was paid: take back up to an hour of it
-  const [last] = await tx.select().from(floats).where(and(eq(floats.userId, userId), gte(floats.endedAt, ride.createdAt))).orderBy(desc(floats.endedAt)).limit(1);
-  if (!last) return;
-  const [paid] = await tx.select({ s: sql<number>`coalesce(sum(${kaju.amount}), 0)::int` }).from(kaju).where(and(eq(kaju.userId, userId), eq(kaju.ref, `float:${last.id}`)));
-  const back = Math.min(paid?.s ?? 0, (KAJU.floaterCancelForfeitMin / 15) * KAJU.floatPer15);
-  if (back > 0) await award(tx, userId, -back, "float_forfeit", `ride:${ride.id}`, now);
 }
 
 export async function cancelRide(db: Db, n: Notifier, user: User, rideId: number, now: Date) {
@@ -133,28 +154,45 @@ export async function cancelRide(db: Db, n: Notifier, user: User, rideId: number
   });
   for (const e of effects) await e(n);
   const [r] = await db.select().from(rides).where(eq(rides.id, rideId));
-  return { late: isLateCancel(r.departAt, now), floater: r.viaFloat && r.pilotId === user.id };
+  return { late: isLateCancel(r.departAt, now) };
 }
 
-/** Either rider says whether it happened. One "yes" completes it and pays both. */
+/** Either rider says whether it happened. One "yes" completes it and pays both; a "no" waits for the other's word. */
 export async function confirmRide(db: Db, n: Notifier, user: User, rideId: number, happened: boolean, now: Date) {
   const res = await db.transaction(async (tx) => {
     const [r] = await tx.select().from(rides).where(eq(rides.id, rideId)).for("update");
     if (!r || (r.pilotId !== user.id && r.hitcherId !== user.id)) throw new GameError("That isn't your ride.");
     if (r.status !== "matched") return { already: r.status };
     if (!happened) {
-      await tx.update(rides).set({ status: "cancelled", cancelledBy: user.id }).where(eq(rides.id, r.id));
+      if (r.deniedBy && r.deniedBy !== user.id) {
+        // both say it didn't happen: close it, no kaju, no blame
+        await tx.update(rides).set({ status: "cancelled" }).where(eq(rides.id, r.id));
+      } else await tx.update(rides).set({ deniedBy: user.id }).where(eq(rides.id, r.id));
       return { already: null, done: false as const };
     }
+    if (r.departAt.getTime() > now.getTime() + 5 * 60_000) throw new GameError(`That ride is at ${istHHMM(r.departAt)}: confirm it once you've ridden!`);
     await tx.update(rides).set({ status: "done", completedAt: now }).where(eq(rides.id, r.id));
     if (r.requestId) await tx.update(plans).set({ status: "done" }).where(eq(plans.id, r.requestId));
-    const pk = await award(tx, r.pilotId, KAJU.ridePilot, "ride_pilot", `ride:${r.id}`, now);
-    const hk = await award(tx, r.hitcherId, KAJU.rideHitcher, "ride_hitcher", `ride:${r.id}`, now);
+    // the same two people are paid for at most N rides a day
+    const dayStart = istDayStart(r.departAt);
+    const [pair] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(rides)
+      .where(and(eq(rides.status, "done"), ne(rides.id, r.id), gte(rides.departAt, dayStart), lt(rides.departAt, new Date(dayStart.getTime() + 24 * 3600_000)),
+        or(and(eq(rides.pilotId, r.pilotId), eq(rides.hitcherId, r.hitcherId)), and(eq(rides.pilotId, r.hitcherId), eq(rides.hitcherId, r.pilotId)))));
+    const capped = (pair?.n ?? 0) >= KAJU.pairRidesPerDay;
+    const pk = capped ? 0 : await award(tx, r.pilotId, KAJU.ridePilot, "ride_pilot", `ride:${r.id}`, now);
+    const hk = capped ? 0 : await award(tx, r.hitcherId, KAJU.rideHitcher, "ride_hitcher", `ride:${r.id}`, now);
     const [p, h] = await loadUsers(tx, r.pilotId, r.hitcherId);
-    return { already: null, done: true as const, p, h, pk, hk };
+    return { already: null, done: true as const, p, h, pk, hk, capped };
   });
-  if (res.done) await n.announce(pick(LINES.rideDone, { pilot: esc(res.p.name), hitcher: esc(res.h.name), pilotKaju: res.pk, hitcherKaju: res.hk }));
+  if (res.done && !res.capped) await n.announce(pick(LINES.rideDone, { pilot: esc(res.p.name), hitcher: esc(res.h.name), pilotKaju: res.pk, hitcherKaju: res.hk }));
   return res;
+}
+
+/** Ticker: rides nobody confirmed within a day just expire (no kaju, no blame). */
+export async function expireRides(db: Db, now: Date) {
+  await db.update(rides).set({ status: "expired" }).where(and(eq(rides.status, "matched"), lt(rides.departAt, new Date(now.getTime() - 24 * 3600_000))));
 }
 
 export async function myRides(db: Db, userId: number) {

@@ -56,7 +56,8 @@ export const rides = pgTable(
     toPlace: text("to_place").notNull(),
     departAt: ts("depart_at").notNull(),
     viaFloat: boolean("via_float").notNull().default(false),
-    status: text("status").notNull().default("matched"), // matched | done | cancelled
+    status: text("status").notNull().default("matched"), // matched | done | cancelled | expired
+    deniedBy: integer("denied_by").references(() => users.id), // said "didn't happen"; the other can still say yes
     cancelledBy: integer("cancelled_by").references(() => users.id),
     completedAt: ts("completed_at"),
     createdAt: ts("created_at").notNull().defaultNow(),
@@ -79,7 +80,8 @@ export const floats = pgTable(
     lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
     liveUntil: ts("live_until").notNull(),
     endedAt: ts("ended_at"),
-    forfeitMinutes: integer("forfeit_minutes").notNull().default(0), // unpaid minutes (a floater cancelled a pickup)
+    forfeitMinutes: integer("forfeit_minutes").notNull().default(0), // unpaid minutes (the floater refused a request)
+    checkedAt: ts("checked_at"), // "still floating?" asked at; cleared by a location update or "still here"
   },
   (t) => [uniqueIndex("floats_one_active").on(t.userId).where(sql`ended_at is null`)],
 );
@@ -106,6 +108,21 @@ export const hearts = pgTable(
     day: text("day").notNull(),
   },
   (t) => [primaryKey({ columns: [t.fromId, t.toId, t.day] })],
+);
+
+/** A floater was asked to pick someone up. Floaters must answer: refusing (or letting it lapse) ends the float. */
+export const floatPings = pgTable(
+  "float_pings",
+  {
+    id: serial("id").primaryKey(),
+    floatId: integer("float_id").notNull().references(() => floats.id),
+    userId: integer("user_id").notNull().references(() => users.id),
+    requestId: integer("request_id").notNull().references(() => plans.id),
+    pingedAt: ts("pinged_at").notNull(),
+    outcome: text("outcome").notNull().default("pending"), // pending | took | refused | missed | released
+    resolvedAt: ts("resolved_at"),
+  },
+  (t) => [uniqueIndex("float_pings_once").on(t.floatId, t.requestId), index("float_pings_pending").on(t.outcome, t.pingedAt)],
 );
 
 /** Scheduled messages already sent (idempotency for the ticker). */

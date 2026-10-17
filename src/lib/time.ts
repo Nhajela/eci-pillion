@@ -36,6 +36,19 @@ export function istTimeToday(hhmm: string, now: Date): Date | null {
   return t;
 }
 
+/** Minutes of [start, end) that fall in floating hours, 07:00–23:00 IST. Nobody needs a floater at 3am. */
+export function floatableMinutes(start: Date, end: Date) {
+  let total = 0;
+  let day = istDayStart(start);
+  while (day.getTime() < end.getTime()) {
+    const open = day.getTime() + 7 * 3600_000;
+    const close = day.getTime() + 23 * 3600_000;
+    total += Math.max(0, Math.min(close, end.getTime()) - Math.max(open, start.getTime()));
+    day = new Date(day.getTime() + 24 * 3600_000);
+  }
+  return Math.floor(total / 60_000);
+}
+
 /** Start of the IST day containing `d`, as a UTC Date. */
 export function istDayStart(d: Date) {
   const [y, mo, da] = istDay(d).split("-").map(Number);

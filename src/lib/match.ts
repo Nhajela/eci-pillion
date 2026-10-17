@@ -3,6 +3,8 @@ import { distanceM, placeById } from "./places";
 
 export const MATCH_WINDOW_MIN = 45;
 export const FLOAT_RADIUS_M = 3000;
+/** Floating only counts inside the village: within this distance of a village spot. */
+export const VILLAGE_RADIUS_M = 4000;
 
 /** Does this offer suit this request? Same destination, close in time, a free seat, two different people. */
 export function offerFitsRequest(offer: Plan, request: Plan) {

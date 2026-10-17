@@ -11,7 +11,7 @@ export const PRIZES = {
   early: { title: "Earliest Bird", line: "Planned furthest ahead, and it happened." },
   float: { title: "Longest Float", line: "Did the least, helped the most." },
   avatar: { title: "Best Avatar", line: "Most hearts on the map today." },
-  hero: { title: "Pharmacy Run Hero", line: "Took someone to the market, or rode after 9pm." },
+  hero: { title: "Pharmacy Run Hero", line: "Took someone to the market, or gave a ride after 7pm." },
   mystery: { title: "Mystery Kaju", line: "Picked at random from everyone who rode." },
 } as const;
 export type PrizeKey = keyof typeof PRIZES;
@@ -60,7 +60,7 @@ export async function computeWinners(db: Db, day: string): Promise<Winner[]> {
   for (const h of await db.select().from(hearts).where(eq(hearts.day, day))) bump(hs, h.toId);
   out.push({ prize: "avatar", userIds: top(hs) });
 
-  const heroes = [...new Set(done.filter((r) => r.toPlace === "market" || istMinuteOfDay(r.departAt) >= 21 * 60).map((r) => r.pilotId))];
+  const heroes = [...new Set(done.filter((r) => r.toPlace === "market" || istMinuteOfDay(r.departAt) >= 19 * 60).map((r) => r.pilotId))];
   out.push({ prize: "hero", userIds: heroes });
 
   const riders = [...new Set(done.flatMap((r) => [r.pilotId, r.hitcherId]))].sort((a, b) => a - b);

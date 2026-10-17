@@ -16,11 +16,18 @@ the site polls and sets a signed session cookie. The bot can also send a magic l
   pilot/floater taps *I'll take them* on a request. First tap wins; offers lose a seat per ride.
 - Matching = same destination and |Δtime| ≤ 45 min, or an active floater within 3 km of the request's start.
   Candidates get a DM with the button; the web board shows the same buttons.
-- After `depart_at + 20 min` both people are asked "Did you ride together?". One *Yes* completes the ride.
+- After `depart_at + 20 min` both people are asked "Did you ride together?". One *Yes* completes the ride; a *No*
+  waits for the other person (two Nos close it). Unconfirmed rides expire after 24 h with no kaju.
+- Nobody is in two places at once: hitchers and two-wheelers have one ride per ±45 min, cars up to their seats. On a
+  match, the hitcher's other requests around then are cancelled and a two-wheeler's other offers fill up.
+- The same two people are paid for at most 2 rides together per day.
 - Cancelling a matched ride or plan less than 30 min before `depart_at` (or after it) costs the canceller 5 kaju,
   and the other person gets a kind DM.
 
 ## Floating
+Only people with wheels can float, only inside the village (≤ 4 km from a spot), and only 07:00–23:00 IST is paid.
+Pings to floaters must be answered (see floater_refusal). A float with no location update for 30 min gets "still floating?";
+no answer in 15 min ends it at the question.
 Share **live location** with the bot → floating. Updates move you. A float ends when the live location stops
 (no update for 15 min), on `/stop`, or after 8 h. Kaju: 5 per full 15 minutes, max 120 per day.
 A static location counts as floating for 60 minutes.
@@ -33,7 +40,8 @@ A static location counts as floating for 60 minutes.
 | ride_pilot / ride_hitcher | +30 / +10 when a ride is done |
 | float | +5 per 15 min, ≤ 120 per IST day |
 | late_cancel | −5 |
-| floater_cancel | −10 when a floater cancels a pickup they took (any time), plus no float kaju for that hour (`floats.forfeit_minutes` += 60; if the float was already paid, `float_forfeit` takes back up to 20). Replaces late_cancel. |
+| floater_refusal | −10 when a floater taps "Can't right now" on a nearby request, or leaves it unanswered for 10 min while it stays open. The float ends and its last hour is unpaid (`forfeit_minutes` += 60). Stopping a float first costs nothing. |
+| plan_cancel | cancelling a plan nobody ever rode on gives its plan kaju back |
 
 ## Daily prizes (21:00 IST, many small winners)
 Most Generous Pilot (most rides done as pilot), Earliest Bird (longest lead on a plan that became a done ride),

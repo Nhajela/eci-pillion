@@ -1,16 +1,19 @@
-import { and, eq, gt, inArray, isNull, lt, ne } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { floats, plans, rides, users, type Plan, type User } from "@/db/schema";
+import { floats, kaju, plans, rides, users, type Plan, type User } from "@/db/schema";
 import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { KAJU, maxSeats, planKaju } from "@/lib/kaju";
 import { floaterNear, offerFitsRequest } from "@/lib/match";
 import { placeById, placeName } from "@/lib/places";
-import { istHHMM } from "@/lib/time";
+import { istDay, istHHMM } from "@/lib/time";
 import { award, earnedToday } from "./kaju";
 import { cancelRideInTx, type Effects } from "./rides";
+import { pingFloater } from "./floats";
+import { once } from "./once";
 
-export class GameError extends Error {}
+export { GameError } from "./errors";
+import { GameError } from "./errors";
 
 export type NewPlan = { kind: "offer" | "request"; fromPlace: string; toPlace: string; departAt: Date; seats?: number; note?: string };
 
@@ -43,7 +46,7 @@ export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan
   });
 
   const when = istHHMM(plan.departAt);
-  if (lead >= 120 && got > 0) {
+  if (lead >= 120 && got > 0 && (await once(db, `earlybird:${user.id}:${istDay(now)}`))) {
     await n.announce(pick(LINES.earlyBird, { name: esc(user.name), to: placeName(plan.toPlace), time: when, hoursAhead: Math.floor(lead / 60) }));
   }
   const pinged = await pingMatches(db, n, user, plan, now);
@@ -72,7 +75,7 @@ export async function pingMatches(db: Db, n: Notifier, owner: User, plan: Plan, 
       for (const { f, u } of fl) {
         if (u.id !== owner.id && !told.has(u.id) && floaterNear(f, plan.fromPlace, now)) {
           told.add(u.id);
-          await n.dm({ to: u.telegramId, text: pick(LINES.rideWanted, vals), buttons: takeButtons(plan.id) });
+          await pingFloater(db, n, u, f, plan, owner, now);
         }
       }
     }
@@ -95,6 +98,12 @@ export async function cancelPlan(db: Db, n: Notifier, user: User, planId: number
     if (!p || p.userId !== user.id) throw new GameError("That isn't your plan.");
     if (p.status === "cancelled" || p.status === "done" || p.status === "expired") throw new GameError("That plan is already closed.");
     await tx.update(plans).set({ status: "cancelled" }).where(eq(plans.id, planId));
+    // a plan nobody ever rode on gives its kaju back (no post-cancel-repost farming)
+    const everRode = await tx.select({ id: rides.id }).from(rides).where(or(eq(rides.offerId, planId), eq(rides.requestId, planId))).limit(1);
+    if (!everRode.length) {
+      const [paid] = await tx.select({ s: sql<number>`coalesce(sum(${kaju.amount}), 0)::int` }).from(kaju).where(and(eq(kaju.userId, user.id), eq(kaju.ref, `plan:${planId}`), eq(kaju.reason, "plan")));
+      if (paid?.s) await award(tx, user.id, -paid.s, "plan_cancel", `plan:${planId}`, now);
+    }
     const live = await tx
       .select()
       .from(rides)
