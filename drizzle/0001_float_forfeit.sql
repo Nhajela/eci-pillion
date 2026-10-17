@@ -1,0 +1,1 @@
+ALTER TABLE "floats" ADD COLUMN "forfeit_minutes" integer DEFAULT 0 NOT NULL;

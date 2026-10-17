@@ -79,6 +79,7 @@ export const floats = pgTable(
     lastSeenAt: ts("last_seen_at").notNull().defaultNow(),
     liveUntil: ts("live_until").notNull(),
     endedAt: ts("ended_at"),
+    forfeitMinutes: integer("forfeit_minutes").notNull().default(0), // unpaid minutes (a floater cancelled a pickup)
   },
   (t) => [uniqueIndex("floats_one_active").on(t.userId).where(sql`ended_at is null`)],
 );

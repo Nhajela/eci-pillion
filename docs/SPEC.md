@@ -33,6 +33,7 @@ A static location counts as floating for 60 minutes.
 | ride_pilot / ride_hitcher | +30 / +10 when a ride is done |
 | float | +5 per 15 min, ≤ 120 per IST day |
 | late_cancel | −5 |
+| floater_cancel | −10 when a floater cancels a pickup they took (any time), plus no float kaju for that hour (`floats.forfeit_minutes` += 60; if the float was already paid, `float_forfeit` takes back up to 20). Replaces late_cancel. |
 
 ## Daily prizes (21:00 IST, many small winners)
 Most Generous Pilot (most rides done as pilot), Earliest Bird (longest lead on a plan that became a done ride),

@@ -57,8 +57,9 @@ export async function endFloat(db: Db, n: Notifier, f: Float, now: Date) {
     const done = await tx.update(floats).set({ endedAt: end }).where(and(eq(floats.id, f.id), isNull(floats.endedAt))).returning();
     if (!done.length) return null;
     const minutes = Math.round((end.getTime() - f.startedAt.getTime()) / 60_000);
+    const [fresh] = await tx.select({ forfeit: floats.forfeitMinutes }).from(floats).where(eq(floats.id, f.id));
     const today = await earnedToday(tx, f.userId, "float", now);
-    const got = await award(tx, f.userId, floatKaju(minutes, today.sum), "float", `float:${f.id}`, now);
+    const got = await award(tx, f.userId, floatKaju(minutes - (fresh?.forfeit ?? 0), today.sum), "float", `float:${f.id}`, now);
     return { minutes, got };
   });
   if (res && res.minutes >= 15) {
