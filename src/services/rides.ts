@@ -1,9 +1,9 @@
-import { and, eq, gt, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { floats, plans, rides, users, type Ride, type User } from "@/db/schema";
+import { floats, kaju, plans, rides, users, type Ride, type User } from "@/db/schema";
 import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
-import { isLateCancel, KAJU } from "@/lib/kaju";
+import { isLateCancel, KAJU, vehicleEmoji } from "@/lib/kaju";
 import { offerFitsRequest } from "@/lib/match";
 import { placeName } from "@/lib/places";
 import { istHHMM } from "@/lib/time";
@@ -23,8 +23,8 @@ function matchedEffects(ride: Ride, pilot: User, hitcher: User): Effects {
   const time = istHHMM(ride.departAt);
   const cancel = [[{ text: "Can't make it", data: `cxr:${ride.id}` }]];
   return [
-    (n) => n.dm({ to: pilot.telegramId, text: `🛵 You're taking ${who(hitcher)} from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Say hi and sort the pickup spot. Spare helmet?`, buttons: cancel }),
-    (n) => n.dm({ to: hitcher.telegramId, text: `💞 ${who(pilot)} is taking you from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Message them to sort the pickup spot.`, buttons: cancel }),
+    (n) => n.dm({ to: pilot.telegramId, text: `${vehicleEmoji(pilot.vehicle)} You're taking ${who(hitcher)} from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Say hi and sort the pickup spot.${pilot.vehicle === "car" ? "" : " Spare helmet?"}`, buttons: cancel }),
+    (n) => n.dm({ to: hitcher.telegramId, text: `💞 ${who(pilot)} ${pilot.vehicle === "car" ? "(by car 🚗) " : ""}is taking you from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Message them to sort the pickup spot.`, buttons: cancel }),
     (n) => n.announce(pick(LINES.match, { pilot: esc(pilot.name), hitcher: esc(hitcher.name), to, time })),
   ];
 }
@@ -64,9 +64,9 @@ export async function hopOn(db: Db, n: Notifier, hitcher: User, offerId: number,
     const [offer] = await tx.select().from(plans).where(eq(plans.id, offerId)).for("update");
     if (!offer || offer.kind !== "offer") throw new GameError("That seat is gone.");
     if (offer.userId === hitcher.id) throw new GameError("That's your own scooty!");
-    if (offer.status !== "open" || offer.seats < 1) throw new GameError("That seat just got taken. Post a request and we'll find you another!");
     const taken = await tx.select().from(rides).where(and(eq(rides.offerId, offerId), eq(rides.hitcherId, hitcher.id), eq(rides.status, "matched")));
     if (taken.length) throw new GameError("You're already on this one.");
+    if (offer.status !== "open" || offer.seats < 1) throw new GameError("That seat just got taken. Post a request and we'll find you another!");
     const mine = await tx.select().from(plans).where(and(eq(plans.userId, hitcher.id), eq(plans.kind, "request"), eq(plans.status, "open")));
     const req = mine.find((r) => offerFitsRequest(offer, r));
     const [ride] = await tx
@@ -97,7 +97,8 @@ export async function cancelRideInTx(tx: Tx, by: User, ride: Ride, now: Date, op
     if (r?.status === "full") await tx.update(plans).set({ status: byPilot ? "open" : "cancelled" }).where(eq(plans.id, r.id));
   }
   const late = isLateCancel(ride.departAt, now);
-  if (late) await award(tx, by.id, KAJU.lateCancel, "late_cancel", `ride:${ride.id}`, now);
+  if (byPilot && ride.viaFloat) await floaterCancelled(tx, by.id, ride, now);
+  else if (late) await award(tx, by.id, KAJU.lateCancel, "late_cancel", `ride:${ride.id}`, now);
   const otherId = byPilot ? ride.hitcherId : ride.pilotId;
   const [other] = await tx.select().from(users).where(eq(users.id, otherId));
   const to = placeName(ride.toPlace);
@@ -105,6 +106,22 @@ export async function cancelRideInTx(tx: Tx, by: User, ride: Ride, now: Date, op
     ? pick(LINES.lateCancel, { name: esc(by.name) })
     : `${esc(by.name)} can't make the ${istHHMM(ride.departAt)} ride to <b>${to}</b> after all. ${byPilot ? "Your request is open again, so someone else can grab it." : "Your seat is free again."}`;
   return [(n) => n.dm({ to: other.telegramId, text })];
+}
+
+/** A floater dropped a pickup: −10, and no float kaju for that hour. */
+async function floaterCancelled(tx: Tx, userId: number, ride: Ride, now: Date) {
+  await award(tx, userId, KAJU.floaterCancel, "floater_cancel", `ride:${ride.id}`, now);
+  const [active] = await tx.select().from(floats).where(and(eq(floats.userId, userId), isNull(floats.endedAt))).for("update");
+  if (active) {
+    await tx.update(floats).set({ forfeitMinutes: active.forfeitMinutes + KAJU.floaterCancelForfeitMin }).where(eq(floats.id, active.id));
+    return;
+  }
+  // the float already ended and was paid: take back up to an hour of it
+  const [last] = await tx.select().from(floats).where(and(eq(floats.userId, userId), gte(floats.endedAt, ride.createdAt))).orderBy(desc(floats.endedAt)).limit(1);
+  if (!last) return;
+  const [paid] = await tx.select({ s: sql<number>`coalesce(sum(${kaju.amount}), 0)::int` }).from(kaju).where(and(eq(kaju.userId, userId), eq(kaju.ref, `float:${last.id}`)));
+  const back = Math.min(paid?.s ?? 0, (KAJU.floaterCancelForfeitMin / 15) * KAJU.floatPer15);
+  if (back > 0) await award(tx, userId, -back, "float_forfeit", `ride:${ride.id}`, now);
 }
 
 export async function cancelRide(db: Db, n: Notifier, user: User, rideId: number, now: Date) {
@@ -115,7 +132,8 @@ export async function cancelRide(db: Db, n: Notifier, user: User, rideId: number
     return cancelRideInTx(tx, user, r, now);
   });
   for (const e of effects) await e(n);
-  return { late: isLateCancel((await db.select().from(rides).where(eq(rides.id, rideId)))[0].departAt, now) };
+  const [r] = await db.select().from(rides).where(eq(rides.id, rideId));
+  return { late: isLateCancel(r.departAt, now), floater: r.viaFloat && r.pilotId === user.id };
 }
 
 /** Either rider says whether it happened. One "yes" completes it and pays both. */

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useAvatar } from "./avatar-store";
 import { PLACES, placeById } from "@/lib/places";
 
-export type MapPerson = { id: number; name: string; avatar: string | null; scooty: string; floatAt?: string };
+export type MapPerson = { id: number; name: string; avatar: string | null; scooty: string; vehicle?: string; floatAt?: string };
 
 // A toy map of the village (not to scale, west is the sea). Avatars ride along the lanes.
 const LANES = [
@@ -19,7 +19,7 @@ const LANES = [
 
 type Rider = {
   lane: number; speed: number; offset: number; scooty: string; face: string;
-  hitcher?: string; mine?: boolean; drawing?: string | null; label?: string;
+  hitcher?: string; mine?: boolean; drawing?: string | null; label?: string; car?: boolean;
 };
 
 const RIDERS: Rider[] = [
@@ -38,6 +38,18 @@ function Head({ x, colour, id }: { x: number; colour: string; id: string }) {
       <path d="M-9 -1 A9 9 0 0 1 9 -1 Z" fill="#fff6e6" stroke="#3b2418" strokeWidth="2" />
       <circle cx="-3" cy="3" r="1.3" fill="#3b2418" />
       <circle cx="3" cy="3" r="1.3" fill="#3b2418" />
+    </g>
+  );
+}
+
+function Car({ colour }: { colour: string }) {
+  return (
+    <g>
+      <path d="M-26 -2 L -26 -12 Q -24 -18 -16 -18 L -10 -28 Q -8 -31 -3 -31 L 12 -31 Q 17 -31 19 -27 L 24 -18 Q 28 -17 28 -12 L 28 -2 Z"
+        fill={colour} stroke="#3b2418" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M-6 -27 L 10 -27 L 15 -19 L -11 -19 Z" fill="#cfeff0" stroke="#3b2418" strokeWidth="1.5" />
+      <circle cx="-15" cy="1" r="6" fill="#3b2418" />
+      <circle cx="17" cy="1" r="6" fill="#3b2418" />
     </g>
   );
 }
@@ -78,7 +90,8 @@ export function VillageMap({ people }: { people?: MapPerson[] } = {}) {
         const facingLeft = raw > 1 ? b.x > a.x : b.x < a.x;
         g.setAttribute("transform", `translate(${a.x},${a.y - 6}) scale(${facingLeft ? -1.5 : 1.5},1.5)`);
         // keep a drawn face readable: undo the mirror on it
-        g.querySelector("[data-face]")?.setAttribute("transform", `translate(-2,-30) scale(${facingLeft ? -1 : 1},1)`);
+        const face = g.querySelector<SVGGElement>("[data-face]");
+        if (face) face.setAttribute("transform", `${face.dataset.base ?? "translate(-2,-30)"} scale(${facingLeft ? -1 : 1},1)`);
       }
       frame = requestAnimationFrame(tick);
     };
@@ -93,7 +106,7 @@ export function VillageMap({ people }: { people?: MapPerson[] } = {}) {
   const riders: Rider[] = real
     ? real.filter((p) => !p.floatAt).map((p, i) => ({
         lane: p.id % LANES.length, speed: 0.035 + ((p.id * 7) % 5) * 0.008, offset: (i * 0.37) % 1,
-        scooty: p.scooty, face: "#e8b894", mine: Boolean(p.avatar), drawing: p.avatar, label: p.name,
+        scooty: p.scooty, face: "#e8b894", mine: Boolean(p.avatar), drawing: p.avatar, label: p.name, car: p.vehicle === "car",
       }))
     : mine ? [...RIDERS, mine] : RIDERS;
   const floaters = real?.filter((p) => p.floatAt) ?? [];
@@ -127,9 +140,9 @@ export function VillageMap({ people }: { people?: MapPerson[] } = {}) {
       ))}
       {all.map((r, i) => (
         <g key={i} data-rider data-lane={r.lane} data-speed={r.speed} data-offset={r.offset}>
-          <Scooty colour={r.scooty} />
+          {r.car ? <Car colour={r.scooty} /> : <Scooty colour={r.scooty} />}
           {r.mine && r.drawing ? (
-            <g data-face transform="translate(-2,-30)">
+            <g data-face data-base={r.car ? "translate(2,-46)" : "translate(-2,-30)"} transform={r.car ? "translate(2,-46)" : "translate(-2,-30)"}>
               <circle r="17" fill="#fff" stroke="#3b2418" strokeWidth="3" />
               <image href={r.drawing} x="-15" y="-15" width="30" height="30" clipPath="url(#face-clip)" />
             </g>
@@ -155,7 +168,7 @@ export function VillageMap({ people }: { people?: MapPerson[] } = {}) {
           <g key={`f${f.id}`} className="floater" transform={`translate(${p.map.x + dx},${p.map.y + 34})`}>
             <title>{`${f.name} is floating near ${p.name}`}</title>
             <circle r="22" fill="#ffd23f" opacity="0.35" className="float-glow" />
-            <Scooty colour={f.scooty} />
+            {f.vehicle === "car" ? <Car colour={f.scooty} /> : <Scooty colour={f.scooty} />}
             <g transform="translate(-2,-30)">
               <circle r="17" fill="#fff" stroke="#3b2418" strokeWidth="3" />
               {f.avatar ? <image href={f.avatar} x="-15" y="-15" width="30" height="30" clipPath="url(#face-clip)" /> : <Head x={0} colour="#e8b894" id="floater" />}

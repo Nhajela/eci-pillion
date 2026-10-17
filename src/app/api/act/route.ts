@@ -14,7 +14,7 @@ import { updateUser, validAvatar, validColour } from "@/services/users";
 
 // One endpoint for every button on the site. Each action maps to one service call.
 const Body = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("plan"), kind: z.enum(["offer", "request"]), from: z.string(), to: z.string(), when: z.string(), seats: z.number().int().min(1).max(3).optional(), note: z.string().max(120).optional() }),
+  z.object({ action: z.literal("plan"), kind: z.enum(["offer", "request"]), from: z.string(), to: z.string(), when: z.string(), seats: z.number().int().min(1).max(6).optional(), note: z.string().max(120).optional() }),
   z.object({ action: z.literal("cancelPlan"), id: z.number().int() }),
   z.object({ action: z.literal("take"), id: z.number().int() }),
   z.object({ action: z.literal("hop"), id: z.number().int() }),

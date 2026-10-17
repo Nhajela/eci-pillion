@@ -30,8 +30,7 @@ describe("the bot", () => {
     await handleUpdate(ctx(), msg(1, `/start login_${code}`));
     expect(tg.texts().some((t) => t.includes("logged in"))).toBe(true);
     expect(tg.buttons()).toContain("veh:scooty");
-    await handleUpdate(ctx(), tap(1, "veh:scooty"));
-    await handleUpdate(ctx(), tap(1, "seats:1"));
+    await handleUpdate(ctx(), tap(1, "veh:scooty")); // a scooty has one pillion seat: no seats question
     const asha = (await getByTelegram(db, 1))!;
     expect(asha.onboardedAt).not.toBeNull();
     expect(await balance(db, asha.id)).toBe(10);

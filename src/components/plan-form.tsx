@@ -9,7 +9,7 @@ const WHEN = [
   ["now", "Now"], ["+30", "In 30 min"], ["+60", "In 1 h"], ["+120", "In 2 h"], ["+180", "In 3 h"], ["+300", "In 5 h"],
 ] as const;
 
-export function PlanForm({ hasWheels }: { hasWheels: boolean }) {
+export function PlanForm({ hasWheels, maxSeats = 2, car = false }: { hasWheels: boolean; maxSeats?: number; car?: boolean }) {
   const router = useRouter();
   const [kind, setKind] = useState<"offer" | "request">(hasWheels ? "offer" : "request");
   const [from, setFrom] = useState("circle");
@@ -39,7 +39,7 @@ export function PlanForm({ hasWheels }: { hasWheels: boolean }) {
   return (
     <form className="plan-form" onSubmit={submit}>
       <div className="seg" role="radiogroup" aria-label="Pilot or hitcher">
-        <button type="button" role="radio" aria-checked={kind === "offer"} className={kind === "offer" ? "on" : ""} onClick={() => setKind("offer")}>🛵 I&apos;m going</button>
+        <button type="button" role="radio" aria-checked={kind === "offer"} className={kind === "offer" ? "on" : ""} onClick={() => setKind("offer")}>{car ? "🚗" : "🛵"} I&apos;m going</button>
         <button type="button" role="radio" aria-checked={kind === "request"} className={kind === "request" ? "on" : ""} onClick={() => setKind("request")}>🙋 I need a ride</button>
       </div>
       <div className="row2">
@@ -55,9 +55,9 @@ export function PlanForm({ hasWheels }: { hasWheels: boolean }) {
           <input className="chip-input" placeholder="or 4:30pm" value={custom} onChange={(e) => setCustom(e.target.value)} aria-label="Exact time" />
         </div>
       </fieldset>
-      {kind === "offer" && (
+      {kind === "offer" && maxSeats > 1 && (
         <label className="seats">Seats free
-          <select value={seats} onChange={(e) => setSeats(Number(e.target.value))}>{[1, 2, 3].map((s) => <option key={s}>{s}</option>)}</select>
+          <select value={seats} onChange={(e) => setSeats(Number(e.target.value))}>{Array.from({ length: Math.max(1, maxSeats) }, (_, i) => i + 1).map((s) => <option key={s}>{s}</option>)}</select>
         </label>
       )}
       <button className="btn" disabled={busy}>{kind === "offer" ? "Post my ride" : "Find me a ride"}</button>

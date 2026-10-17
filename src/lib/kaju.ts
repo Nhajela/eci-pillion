@@ -10,8 +10,14 @@ export const KAJU = {
   floatPer15: 5,
   floatMaxPerDay: 120,
   lateCancel: -5,
+  floaterCancel: -10, // a floater who drops a pickup: −10, and no float kaju for that hour
+  floaterCancelForfeitMin: 60,
   lateCancelWindowMin: 30,
 } as const;
+
+/** Seats a vehicle can offer: a scooty or bike carries one pillion, a car up to 6. */
+export const maxSeats = (vehicle: string) => (vehicle === "car" ? 6 : vehicle === "none" ? 0 : 1);
+export const vehicleEmoji = (vehicle: string) => (vehicle === "car" ? "🚗" : vehicle === "bike" ? "🏍️" : "🛵");
 
 export function planKaju(leadMinutes: number) {
   if (leadMinutes >= 120) return KAJU.planEarly;

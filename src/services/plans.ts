@@ -3,7 +3,7 @@ import type { Db } from "@/db";
 import { floats, plans, rides, users, type Plan, type User } from "@/db/schema";
 import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
-import { KAJU, planKaju } from "@/lib/kaju";
+import { KAJU, maxSeats, planKaju } from "@/lib/kaju";
 import { floaterNear, offerFitsRequest } from "@/lib/match";
 import { placeById, placeName } from "@/lib/places";
 import { istHHMM } from "@/lib/time";
@@ -14,14 +14,14 @@ export class GameError extends Error {}
 
 export type NewPlan = { kind: "offer" | "request"; fromPlace: string; toPlace: string; departAt: Date; seats?: number; note?: string };
 
-export function validatePlan(input: NewPlan, now: Date) {
+export function validatePlan(input: NewPlan, now: Date, seatCap = 1) {
   if (input.kind !== "offer" && input.kind !== "request") throw new GameError("Pilot or hitcher?");
   if (!placeById(input.fromPlace) || !placeById(input.toPlace)) throw new GameError("Pick places from the list.");
   if (input.fromPlace === input.toPlace) throw new GameError("That's where you already are!");
   const t = input.departAt.getTime();
   if (Number.isNaN(t) || t < now.getTime() - 10 * 60_000) throw new GameError("That time has already gone by.");
   if (t > now.getTime() + 36 * 3600_000) throw new GameError("Plans can be up to a day and a half ahead.");
-  const seats = input.kind === "offer" ? Math.min(3, Math.max(1, input.seats ?? 1)) : 1;
+  const seats = input.kind === "offer" ? Math.min(Math.max(1, seatCap), Math.max(1, input.seats ?? 1)) : 1;
   return { ...input, seats, note: input.note?.trim().slice(0, 120) || null };
 }
 
@@ -30,7 +30,7 @@ const takeButtons = (requestId: number) => [[{ text: "🙋 I'll take them", data
 
 /** Post a plan, pay its kaju, and ping the people who could match it. */
 export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan, now: Date) {
-  const v = validatePlan(input, now);
+  const v = validatePlan(input, now, maxSeats(user.vehicle));
   const lead = Math.max(0, Math.round((v.departAt.getTime() - now.getTime()) / 60_000));
   const { plan, got } = await db.transaction(async (tx) => {
     const [plan] = await tx

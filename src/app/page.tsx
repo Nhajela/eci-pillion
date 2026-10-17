@@ -11,8 +11,8 @@ const ROLES = [
   {
     key: "pilot",
     title: "Pilot",
-    tag: "You've got the scooty. Someone's got the time.",
-    body: "Say where you're going and when: “around 4pm, Arambol, 1 seat free.” A hitcher claims it. You ride, you chat (or don't), you both earn kaju. Pilots earn more: you brought the wheels.",
+    tag: "You've got the scooty (or the car). Someone's got the time.",
+    body: "Say where you're going and when: “around 4pm, Arambol, 1 seat free.” A hitcher claims it. You ride, you chat (or don't), you both earn kaju. Pilots earn more: you brought the wheels. One scooty, one pillion. Got a car? Offer up to six seats, and every passenger counts.",
   },
   {
     key: "hitcher",
@@ -36,6 +36,7 @@ const KAJU = [
   ["Complete a ride as hitcher", "+10", "You brought the company. Also respect."],
   ["Float for an hour", "+20", "Every hour. Nap on the beach, get rich."],
   ["Cancel last-minute", "−5", "Not a punishment. Someone just checked their phone twice."],
+  ["Floater drops a pickup", "−10", "And no float kaju for that hour. Floaters are the village's promise."],
 ];
 
 const PRIZES = [
@@ -57,6 +58,7 @@ const ROADMAP = (live: boolean) => [
 const FAQ = [
   ["Is it free?", "Yes. Kaju is pretend money. Rides are favours between neighbours. The prizes are real, but you can't buy them, only earn them."],
   ["Is it a taxi?", "No. Nobody's working. It's one villager going somewhere and another one tagging along. For the Riva ↔ Circle run, the shuttle is still your friend."],
+  ["Cars too?", "Yes! Pick 🚗 when you sign up (or /wheels later) and offer as many seats as you have. Each passenger is its own ride, so a full car is a lot of kaju."],
   ["Do I need a scooty?", "Not at all. Hitchers earn kaju too, and half the village is on foot. You just need Telegram and somewhere to be."],
   ["What if I cancel?", "Life happens. Cancel early and nothing happens. Cancel last-minute and you lose 5 kaju: a tiny nudge, because someone was waiting by the gate."],
   ["Is my location tracked all the time?", "Only while you're floating, and only because you switched Telegram live location on. Switch it off and you vanish from the map."],

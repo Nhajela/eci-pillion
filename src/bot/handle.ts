@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { Db } from "@/db";
 import { plans, type User } from "@/db/schema";
 import { env } from "@/lib/env";
+import { maxSeats, vehicleEmoji } from "@/lib/kaju";
 import { PLACES, placeName } from "@/lib/places";
 import { istHHMM, istTimeToday } from "@/lib/time";
 import { balance, history, REASON_LABEL } from "@/services/kaju";
@@ -33,6 +34,17 @@ const placeGrid = (prefix: string, skip?: string): Button[][] => {
   for (let i = 0; i < ps.length; i += 2) rows.push(ps.slice(i, i + 2).map((p) => ({ text: p.name, data: `${prefix}:${p.id}` })));
   return rows;
 };
+
+const VEHICLE_BUTTONS: Button[][] = [
+  [{ text: "🛵 Scooty", data: "veh:scooty" }, { text: "🏍️ Bike", data: "veh:bike" }, { text: "🚗 Car", data: "veh:car" }],
+  [{ text: "🚶 No wheels (hitcher life)", data: "veh:none" }],
+];
+
+// only cars get asked; a scooty or bike always has exactly one pillion seat
+const seatButtons = (prefix: string): Button[][] => [
+  [1, 2, 3].map((s) => ({ text: String(s), data: `${prefix}:${s}` })),
+  [4, 5, 6].map((s) => ({ text: String(s), data: `${prefix}:${s}` })),
+];
 
 const TIME_BUTTONS: Button[][] = [
   [{ text: "Now", data: "w:t:0" }, { text: "In 30 min", data: "w:t:30" }, { text: "In 1 h", data: "w:t:60" }],
@@ -66,8 +78,7 @@ async function webLink(ctx: Ctx, user: User, path = "/home") {
 
 async function welcome(ctx: Ctx, chatId: number, user: User) {
   await say(ctx, chatId, `Hi <b>${esc(user.name)}</b>! 🛵 Welcome to <b>Pillion</b>, where spare back seats find people.\n\nFirst: what do you ride?`, [
-    [{ text: "🛵 Scooty", data: "veh:scooty" }, { text: "🏍️ Bike", data: "veh:bike" }],
-    [{ text: "🚶 No wheels (hitcher life)", data: "veh:none" }],
+    ...VEHICLE_BUTTONS,
   ]);
 }
 
@@ -84,7 +95,7 @@ async function startWizard(ctx: Ctx, chatId: number, user: User, kind: Wizard["k
 async function finishWizard(ctx: Ctx, chatId: number, user: User, w: Wizard, seats?: number) {
   await updateUser(ctx.db, user.id, { botState: null });
   const { plan, kaju, pinged } = await createPlan(ctx.db, ctx.n, user, { kind: w.kind, fromPlace: w.from!, toPlace: w.to!, departAt: new Date(w.at!), seats }, ctx.now);
-  const what = w.kind === "offer" ? `heading to <b>${placeName(plan.toPlace)}</b> with ${plan.seats} seat${plan.seats > 1 ? "s" : ""}` : `looking for a ride to <b>${placeName(plan.toPlace)}</b>`;
+  const what = w.kind === "offer" ? `${vehicleEmoji(user.vehicle)} heading to <b>${placeName(plan.toPlace)}</b> with ${plan.seats} seat${plan.seats > 1 ? "s" : ""}` : `looking for a ride to <b>${placeName(plan.toPlace)}</b>`;
   const tail = pinged ? `I pinged ${pinged} ${pinged === 1 ? "person" : "people"} who might match. 🤞` : "I'll ping you the moment someone matches.";
   await say(ctx, chatId, `Posted! You're ${what} from ${placeName(plan.fromPlace)} around <b>${istHHMM(plan.departAt)}</b>.\n+${kaju} kaju${kaju >= 15 ? " (early bird!)" : ""}. ${tail}`, [
     [{ text: "Cancel this plan", data: `cxp:${plan.id}` }],
@@ -173,6 +184,7 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
     case "/mine": return mine(ctx, chatId, user);
     case "/kaju": return kajuInfo(ctx, chatId, user);
     case "/web": return say(ctx, chatId, "Your Pillion on the web (link works once, for 30 minutes):", [[{ text: "🌐 Open Pillion", url: await webLink(ctx, user) }]]);
+    case "/wheels": return say(ctx, chatId, "What are you riding these days?", VEHICLE_BUTTONS);
     case "/name": {
       const name = rest.join(" ").trim().slice(0, 32);
       if (!name) return say(ctx, chatId, "Send <b>/name</b> followed by what the village should call you.");
@@ -184,11 +196,11 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
 }
 
 async function afterTime(ctx: Ctx, chatId: number, user: User, w: Wizard) {
-  if (w.kind === "offer" && user.seats > 1) {
+  if (w.kind === "offer" && user.vehicle === "car" && user.seats > 1) {
     await updateUser(ctx.db, user.id, { botState: { ...w, step: "seats" } });
-    return say(ctx, chatId, "How many seats free?", [[1, 2, 3].map((s) => ({ text: String(s), data: `w:s:${s}` }))]);
+    return say(ctx, chatId, "How many seats free?", seatButtons("w:s").map((row) => row.filter((b) => Number(b.data!.split(":")[2]) <= user.seats)));
   }
-  return finishWizard(ctx, chatId, user, w, Math.max(1, user.seats));
+  return finishWizard(ctx, chatId, user, w, 1);
 }
 
 async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
@@ -201,12 +213,13 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
     if (a !== "veh" && a !== "seats" && !user.onboardedAt) {
       await welcome(ctx, chatId, user);
     } else if (a === "veh") {
-      const vehicle = b === "scooty" || b === "bike" ? b : "none";
-      const u2 = await updateUser(ctx.db, user.id, { vehicle, seats: vehicle === "none" ? 0 : user.seats || 1 });
-      if (vehicle === "none") await onboarded(ctx, chatId, u2);
-      else await say(ctx, chatId, "How many people can you usually carry?", [[{ text: "1 pillion", data: "seats:1" }, { text: "2 (it's a big scooty)", data: "seats:2" }]]);
+      const vehicle = b === "scooty" || b === "bike" || b === "car" ? b : "none";
+      const u2 = await updateUser(ctx.db, user.id, { vehicle, seats: Math.min(maxSeats(vehicle), Math.max(1, user.seats)) });
+      if (vehicle === "car") await say(ctx, chatId, "🚗 How many free seats do you usually have?", seatButtons("seats"));
+      else await onboarded(ctx, chatId, u2);
     } else if (a === "seats") {
-      await onboarded(ctx, chatId, await updateUser(ctx.db, user.id, { seats: b === "2" ? 2 : 1 }));
+      const seats = Math.min(Math.max(1, Number(b) || 1), Math.max(1, maxSeats(user.vehicle)));
+      await onboarded(ctx, chatId, await updateUser(ctx.db, user.id, { seats }));
     } else if (a === "menu") {
       if (b === "offer" || b === "request") await startWizard(ctx, chatId, user, b);
       else if (b === "float") await say(ctx, chatId, FLOAT_HELP);
@@ -238,7 +251,9 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       toast = r.already ? "Already sorted, thanks!" : r.done ? "Kaju delivered! 🥜" : "Okay, marked as not happened. No harm done.";
     } else if (a === "cxr") {
       const r = await cancelRide(ctx.db, ctx.n, user, Number(b), ctx.now);
-      toast = r.late ? "Cancelled. −5 kaju (they were counting on you). It's okay, life happens." : "Cancelled, no kaju lost. Thanks for the heads-up!";
+      toast = r.floater
+        ? "Cancelled. As a floater that's −10 kaju and no float kaju for this hour: someone nearby was counting on you."
+        : r.late ? "Cancelled. −5 kaju (they were counting on you). It's okay, life happens." : "Cancelled, no kaju lost. Thanks for the heads-up!";
     } else if (a === "cxp") {
       await cancelPlan(ctx.db, ctx.n, user, Number(b), ctx.now);
       toast = "Plan cancelled.";

@@ -10,6 +10,7 @@ import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { nearestPlace, placeName } from "@/lib/places";
 import { istHHMM } from "@/lib/time";
+import { maxSeats, vehicleEmoji } from "@/lib/kaju";
 import { activeFloats } from "@/services/floats";
 import { balance, history, REASON_LABEL } from "@/services/kaju";
 import { myPlans, openPlans } from "@/services/plans";
@@ -66,7 +67,7 @@ export default async function Home() {
             {upcoming.map((r) => (
               <div key={`r${r.id}`} className="line">
                 <span>🛵 <b>{istHHMM(r.departAt)}</b> {placeName(r.fromPlace)} → <b>{placeName(r.toPlace)}</b>, {r.pilotId === user.id ? "taking" : "riding with"} {nameOf(r.pilotId === user.id ? r.hitcherId : r.pilotId)}</span>
-                <ActButton body={{ action: "cancelRide", id: r.id }} className="btn small ghost" confirm="Cancel this ride? Inside 30 minutes it costs 5 kaju.">Can&apos;t make it</ActButton>
+                <ActButton body={{ action: "cancelRide", id: r.id }} className="btn small ghost" confirm={r.viaFloat && r.pilotId === user.id ? "Cancel this pickup? Floaters who cancel lose 10 kaju and this hour's float kaju." : "Cancel this ride? Inside 30 minutes it costs 5 kaju."}>Can&apos;t make it</ActButton>
               </div>
             ))}
             {mine.filter((p) => p.status === "open").map((p) => (
@@ -80,7 +81,7 @@ export default async function Home() {
 
         <section className="card">
           <h2>Post a plan</h2>
-          <PlanForm hasWheels={user.vehicle !== "none"} />
+          <PlanForm hasWheels={user.vehicle !== "none"} maxSeats={Math.max(1, Math.min(user.seats, maxSeats(user.vehicle)))} car={user.vehicle === "car"} />
         </section>
 
         <section className="card">
@@ -89,7 +90,7 @@ export default async function Home() {
           {offers.length > 0 && <h3>Seats going</h3>}
           {offers.map(({ plan, user: u }) => (
             <div key={plan.id} className="line">
-              <span className="who"><Face u={u} /><span><b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{placeName(plan.toPlace)}</b> · {plan.seats} seat{plan.seats > 1 ? "s" : ""}</span></span>
+              <span className="who"><Face u={u} /><span>{vehicleEmoji(u.vehicle)} <b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{placeName(plan.toPlace)}</b> · {plan.seats} seat{plan.seats > 1 ? "s" : ""}</span></span>
               <ActButton body={{ action: "hop", id: plan.id }} done="You're on! Check Telegram. 🛵">Hop on</ActButton>
             </div>
           ))}

@@ -14,7 +14,7 @@ async function call(method, params) {
 
 await call("setWebhook", {
   url: `${origin.replace(/\/$/, "")}/api/telegram`, secret_token: secret,
-  allowed_updates: ["message", "edited_message", "callback_query"], drop_pending_updates: true,
+  allowed_updates: ["message", "edited_message", "callback_query"],
 });
 await call("setMyCommands", {
   commands: [
@@ -26,6 +26,7 @@ await call("setMyCommands", {
     { command: "kaju", description: "🥜 My kaju" },
     { command: "web", description: "🌐 Open Pillion on the web" },
     { command: "name", description: "Change what the village calls you" },
+    { command: "wheels", description: "🛵/🚗 Change your vehicle and seats" },
   ],
 });
 await call("setMyDescription", { description: "Pillion: spare scooty seats find people across the Edge City village. Post where you're going, hop on, float, earn kaju. 🛵🥜" });
