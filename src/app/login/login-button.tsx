@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function LoginButton() {
+/** `next` must already be a safe same-site path (safeNext). */
+export function LoginButton({ next = "/home" }: { next?: string }) {
   const [code, setCode] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [state, setState] = useState<"idle" | "waiting" | "expired" | "error">("idle");
@@ -12,11 +13,11 @@ export function LoginButton() {
     if (!code) return;
     timer.current = setInterval(async () => {
       const r = await fetch(`/api/login/poll?code=${code}`).then((x) => x.json()).catch(() => null);
-      if (r?.status === "ok") window.location.href = "/home";
+      if (r?.status === "ok") window.location.href = next;
       if (r?.status === "expired") setState("expired");
     }, 2000);
     return () => { if (timer.current) clearInterval(timer.current); };
-  }, [code]);
+  }, [code, next]);
 
   const start = async () => {
     const r = await fetch("/api/login/start", { method: "POST" }).then((x) => x.json()).catch(() => null);

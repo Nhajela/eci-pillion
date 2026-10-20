@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
-import { currentUser } from "@/lib/auth";
+import { currentUser, safeNext } from "@/lib/auth";
 import { botEnabled } from "@/lib/env";
 import { LoginButton } from "./login-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function Login({ searchParams }: { searchParams: Promise<{ expired?: string }> }) {
-  if (await currentUser()) redirect("/home");
-  const { expired } = await searchParams;
+export default async function Login({ searchParams }: { searchParams: Promise<{ expired?: string; next?: string }> }) {
+  const { expired, next: rawNext } = await searchParams;
+  const next = safeNext(rawNext ?? null);
+  if (await currentUser()) redirect(next);
   return (
     <main className="narrow">
       <a href="/" className="brand">Pillion</a>
@@ -16,7 +17,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <>
           <p className="lede">We use Telegram, so there are no passwords to forget. Tap the button, press <b>Start</b> in Telegram, and come back here.</p>
           {expired && <p className="warn">That link had expired. Try again?</p>}
-          <LoginButton />
+          <LoginButton next={next} />
         </>
       ) : (
         <p className="lede">The Pillion bot is still waking up. Draw your avatar on the <a href="/#avatar">front page</a> meanwhile: it will come with you when you log in.</p>

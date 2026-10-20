@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AvatarPage({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
   const user = await currentUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=/avatar");
   const welcome = Boolean((await searchParams).welcome);
   return (
     <>
