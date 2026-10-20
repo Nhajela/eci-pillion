@@ -19,6 +19,11 @@ Each release must be useful on its own. Roadmap and status: `docs/ROADMAP.md`. G
 - Kaju is an append-only ledger, unique per (user, reason, ref). Never update or delete kaju rows.
 - Telegram features are off until `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` are set (`botEnabled()`).
 - Bot copy pool: `src/bot/lines.ts` (`pick()`). Values passed in must already be HTML-escaped (`esc`).
+- Places: seeds in `src/lib/places.ts`, the rest in the `places` table (anyone adds by name). `loadPlaces(db)` refreshes
+  the in-memory list (20 s TTL); call it at the top of every adapter and page that reads place names. Place names and
+  plan notes are stripped of `<>&` on the way in, since they go into Telegram HTML.
+- Roles: member / staff / admin on `users.role` (`services/roles.ts`); `BOOTSTRAP_ADMINS` usernames become admin.
+  `/admin` and `/staff` share `components/dashboard.tsx`; admin checks live in the services, not the adapters.
 
 ## Tests
 `pnpm test-db` once (local throwaway Postgres on 127.0.0.1:5549), then `pnpm test`. Schema change: edit

@@ -145,3 +145,21 @@ Only while you're floating, and only because you switched Telegram live location
 ## 10. Footer
 
 Made in Mandrem, with one spare seat and a bag of cashews.
+
+## 11. Beta (20 Oct launch)
+Stamp: **Beta · an experiment**. Pills saying "beta" sit by the eyebrow, the "Three ways to play" heading, the app's
+logo and the footer; the 🧪 **Beta · feedback** button floats in the corner of every page.
+
+> **This is a beta, and an experiment. Let's test it out together.**
+> Pillion is our experiment in sharing rides around the village. Most of us have a back seat that rides empty, or a
+> car with three spare seats, and most of us have stood at Riva wondering how to get to the Circle. We think the
+> village can fix that for itself, if we plan a little.
+>
+> **That's why we reward planning.** We want finding a ride to be predictable, not a last-minute, half-hearted
+> scramble. When you say at breakfast that you're going to Arambol at four, someone can plan around you. So early
+> plans earn the most kaju, and a ride-now alert earns a little.
+>
+> Some things will break. Please tell us when they do, and tell us what you wish it did.
+
+"Why tell us early?" adds: *We'd rather value your planning than your speed. A village where people say early where
+they're going is one where a ride is something you can count on, not something you hope for.*

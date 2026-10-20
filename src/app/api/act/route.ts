@@ -11,10 +11,26 @@ import { cancelPlan, createPlan, GameError } from "@/services/plans";
 import { cancelRide, confirmRide, hopOn, takeRequest } from "@/services/rides";
 import { stopFloat } from "@/services/floats";
 import { getUser, updateUser, validAvatar, validColour } from "@/services/users";
+import { findOrAddPlace, loadPlaces, parsePin, savePlace } from "@/services/places";
+import { fileReport, setReportStatus } from "@/services/reports";
+import { requireAdmin, setRole } from "@/services/roles";
 
 // One endpoint for every button on the site. Each action maps to one service call.
 const Body = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("plan"), kind: z.enum(["offer", "request"]), from: z.string(), to: z.string(), when: z.string(), seats: z.number().int().min(1).max(6).optional(), note: z.string().max(120).optional() }),
+  z.object({
+    action: z.literal("plan"), kind: z.enum(["offer", "request"]), from: z.string(), to: z.string(), when: z.string(),
+    seats: z.number().int().min(1).max(6).optional(), note: z.string().max(120).optional(),
+    // "Somewhere else": a typed place name instead of an id
+    fromName: z.string().max(60).optional(), toName: z.string().max(60).optional(),
+  }),
+  z.object({ action: z.literal("report"), kind: z.enum(["bug", "feature"]), text: z.string().min(1).max(2000), page: z.string().max(200).optional() }),
+  z.object({ action: z.literal("setRole"), id: z.number().int(), role: z.enum(["member", "staff", "admin"]) }),
+  z.object({ action: z.literal("reportStatus"), id: z.number().int(), status: z.enum(["new", "doing", "done", "wontdo"]) }),
+  z.object({
+    action: z.literal("savePlace"), id: z.string().max(60), name: z.string().max(60).optional(), kind: z.enum(["hub", "spot", "stay", "event"]).optional(),
+    hidden: z.boolean().optional(), note: z.string().max(120).nullable().optional(), pin: z.string().max(300).optional(),
+  }),
+  z.object({ action: z.literal("addPlace"), name: z.string().min(2).max(60), kind: z.enum(["hub", "spot", "stay", "event"]), pin: z.string().max(300).optional() }),
   z.object({ action: z.literal("cancelPlan"), id: z.number().int() }),
   z.object({ action: z.literal("take"), id: z.number().int() }),
   z.object({ action: z.literal("hop"), id: z.number().int() }),
@@ -40,11 +56,34 @@ export async function POST(req: Request) {
   const now = new Date();
   const n = getNotifier();
   try {
+    await loadPlaces(db());
     switch (b.action) {
+      case "report": {
+        const r = await fileReport(db(), n, user, { kind: b.kind, text: b.text, source: "web", page: b.page }, now);
+        return NextResponse.json({ ok: true, id: r.id });
+      }
+      case "setRole": await setRole(db(), user, b.id, b.role); break;
+      case "reportStatus": await setReportStatus(db(), n, user, b.id, b.status, now); break;
+      case "savePlace": {
+        const pin = b.pin === undefined ? undefined : b.pin.trim() ? parsePin(b.pin) : null;
+        if (pin === null && b.pin?.trim()) throw new GameError("I couldn't read that pin. Paste “15.67, 73.71” or a Google Maps link.");
+        await savePlace(db(), user, b.id, { name: b.name, kind: b.kind, hidden: b.hidden, note: b.note, ...(pin !== undefined ? { lat: pin?.lat ?? null, lng: pin?.lng ?? null } : {}) });
+        break;
+      }
+      case "addPlace": {
+        requireAdmin(user);
+        const pin = b.pin?.trim() ? parsePin(b.pin) : null;
+        if (b.pin?.trim() && !pin) throw new GameError("I couldn't read that pin. Paste “15.67, 73.71” or a Google Maps link.");
+        const r = await findOrAddPlace(db(), user, b.name, pin, b.kind);
+        if (!r.added) throw new GameError(`That's already on the list as “${r.place.name}”.`);
+        break;
+      }
       case "plan": {
         const departAt = b.when === "now" ? now : /^\+\d+$/.test(b.when) ? new Date(now.getTime() + Number(b.when.slice(1)) * 60_000) : istTimeToday(b.when, now);
         if (!departAt) throw new GameError("Pick a time like 4:30pm.");
-        const r = await createPlan(db(), n, user, { kind: b.kind, fromPlace: b.from, toPlace: b.to, departAt, seats: b.seats, note: b.note }, now);
+        const fromPlace = b.fromName?.trim() ? (await findOrAddPlace(db(), user, b.fromName, null)).place.id : b.from;
+        const toPlace = b.toName?.trim() ? (await findOrAddPlace(db(), user, b.toName, null)).place.id : b.to;
+        const r = await createPlan(db(), n, user, { kind: b.kind, fromPlace, toPlace, departAt, seats: b.seats, note: b.note }, now);
         return NextResponse.json({ ok: true, kaju: r.kaju, pinged: r.pinged });
       }
       case "cancelPlan": await cancelPlan(db(), n, user, b.id, now); break;

@@ -52,3 +52,27 @@ Ties → everyone tied wins. Posted to `PILLION_ANNOUNCE_CHAT_ID` if set, and sh
 ## Background ticker (in-process, every 60 s)
 Close stale floats, remind matched rides 15 min ahead, ask for completion, 08:00 morning nudge, 21:00 prizes.
 Each scheduled message has a unique key in `sent_keys`, so restarts never double-send.
+
+## Places (release 5)
+- Built-in seeds live in `src/lib/places.ts` (Riva and the Circle are **hubs** and come first; a `community-dinner`
+  **event** has no fixed pin: admins set tonight's pin and note). Everything else is the `places` table.
+- Anyone adds a place by typing its name ("➕ Somewhere else" in the bot or on the site). The bot then asks for a pin
+  (📎 → Location → pick the spot), which is optional. Same loose name, or a pin within 150 m of a known place, reuses
+  that place instead of adding a duplicate.
+- Matching: two destinations are the same if they share an id or are both pinned within 600 m of each other, so a stay
+  next to Riva matches rides to Riva. A place without a pin matches by id only, and floaters can't be pinged for
+  pickups there (the bot says so).
+- Admins (dashboard → Places) add, rename, re-pin (paste "lat, lng" or a Google Maps link), change kind
+  (hub / event / spot / stay), add a note, or hide a place from pickers. Old plans keep their names.
+
+## Errands
+A request can go to "a quick errand and back" (`to_place = 'errand'`, note = what for). It is a ride from `from` and
+back to it. Only floaters near `from` are pinged (an offer can't go to an errand). Kaju as for any ride.
+
+## Roles, bugs and ideas
+- `users.role`: member | staff (read-only `/staff` dashboard) | admin (`/admin`: changes things). `BOOTSTRAP_ADMINS`
+  usernames become admin when they next message the bot; admins set roles on the dashboard and can't demote themselves.
+- Reports: `/bug` and `/error` → bug; `/feature`, `/feature request …`, `/idea` → feature. A bare command asks for the
+  text next. `t.me/<bot>?start=bug|feature` does the same (the site's links). On the web, the 🧪 Beta button on every
+  page (logged in). Each report DMs every admin at once; 10 per person per hour. Admins move it new → doing → done /
+  won't do; done or won't do sends the reporter a thank-you.

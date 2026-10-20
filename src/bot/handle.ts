@@ -3,7 +3,7 @@ import type { Db } from "@/db";
 import { plans, type User } from "@/db/schema";
 import { env } from "@/lib/env";
 import { maxSeats, vehicleEmoji } from "@/lib/kaju";
-import { PLACES, placeName } from "@/lib/places";
+import { allPlaces, destName, ERRAND, located, placeById, placeName } from "@/lib/places";
 import { istHHMM, istTimeToday } from "@/lib/time";
 import { balance, history, REASON_LABEL } from "@/services/kaju";
 import { claimLogin, magicCode } from "@/services/login";
@@ -11,6 +11,9 @@ import { cancelPlan, createPlan, GameError } from "@/services/plans";
 import { cancelRide, confirmRide, hopOn, myRides, takeRequest } from "@/services/rides";
 import { locate, refuseRequest, stillHere, stopFloat } from "@/services/floats";
 import { finishOnboarding, getUser, updateUser, upsertTelegramUser, type TgUser } from "@/services/users";
+import { findOrAddPlace, loadPlaces, pinPlace } from "@/services/places";
+import { fileReport, type ReportKind } from "@/services/reports";
+import { isAdmin, isStaff } from "@/services/roles";
 import { esc, keyboard, type Button, type Call, type Notifier } from "./telegram";
 
 type Msg = { chat: { id: number; type: string }; from?: TgUser; text?: string; edit_date?: number; location?: { latitude: number; longitude: number; live_period?: number } };
@@ -20,18 +23,33 @@ export type Update = {
   callback_query?: { id: string; from: TgUser; data?: string; message?: { chat: { id: number }; message_id: number } };
 };
 
-type Wizard = { kind: "offer" | "request"; to?: string; from?: string; at?: string; step: "to" | "from" | "time" | "seats" };
+type Wizard = {
+  kind: "offer" | "request"; to?: string; from?: string; at?: string; note?: string;
+  step: "to" | "from" | "time" | "seats" | "name" | "pin" | "errand";
+  naming?: "to" | "from"; // step name/pin: which end of the trip the new place is
+  pinFor?: string; // step pin: the new place waiting for a pin
+};
+type Reporting = { report: ReportKind };
+const isWizard = (s: unknown): s is Wizard => Boolean(s && typeof s === "object" && "step" in s);
+const isReporting = (s: unknown): s is Reporting => Boolean(s && typeof s === "object" && "report" in s);
 
 const MENU: Button[][] = [
   [{ text: "🛵 I'm going somewhere", data: "menu:offer" }, { text: "🙋 I need a ride", data: "menu:request" }],
   [{ text: "🌴 Float", data: "menu:float" }, { text: "📋 My rides", data: "menu:mine" }],
   [{ text: "🥜 Kaju", data: "menu:kaju" }, { text: "🌐 Open Pillion", data: "menu:web" }],
+  [{ text: "🐞 Report a bug", data: "menu:bug" }, { text: "💡 Suggest an idea", data: "menu:feature" }],
 ];
 
-const placeGrid = (prefix: string, skip?: string): Button[][] => {
-  const ps = PLACES.filter((p) => p.id !== skip);
+const MAX_GRID = 14;
+
+// Hubs first, then tonight's events, spots and stays. Anything else: "Somewhere else" and type its name.
+const placeGrid = (prefix: string, opts: { skip?: string; errand?: boolean } = {}): Button[][] => {
+  const ps = allPlaces().filter((p) => p.id !== opts.skip).slice(0, MAX_GRID);
+  const label = (p: (typeof ps)[number]) => (p.kind === "hub" ? `⭐ ${p.name}` : p.kind === "event" ? `🍲 ${p.name}` : p.kind === "stay" ? `🏡 ${p.name}` : p.name);
   const rows: Button[][] = [];
-  for (let i = 0; i < ps.length; i += 2) rows.push(ps.slice(i, i + 2).map((p) => ({ text: p.name, data: `${prefix}:${p.id}` })));
+  if (opts.errand) rows.push([{ text: "🧺 Quick errand nearby & back", data: `${prefix}:${ERRAND.id}` }]);
+  for (let i = 0; i < ps.length; i += 2) rows.push(ps.slice(i, i + 2).map((p) => ({ text: label(p), data: `${prefix}:${p.id}` })));
+  rows.push([{ text: "➕ Somewhere else (type it)", data: `${prefix}:+new` }]);
   return rows;
 };
 
@@ -89,14 +107,23 @@ async function menu(ctx: Ctx, chatId: number, user: User, lead = "What's the pla
 
 async function startWizard(ctx: Ctx, chatId: number, user: User, kind: Wizard["kind"]) {
   await updateUser(ctx.db, user.id, { botState: { kind, step: "to" } satisfies Wizard });
-  await say(ctx, chatId, kind === "offer" ? "🛵 Where are you heading?" : "🙋 Where do you want to go?", placeGrid("w:to"));
+  await say(
+    ctx, chatId,
+    kind === "offer" ? `${vehicleEmoji(user.vehicle)} Where are you heading?` : "🙋 Where do you want to go? (A quick errand to a shop nearby and back works too.)",
+    placeGrid("w:to", { errand: kind === "request" }),
+  );
 }
 
 async function finishWizard(ctx: Ctx, chatId: number, user: User, w: Wizard, seats?: number) {
   await updateUser(ctx.db, user.id, { botState: null });
-  const { plan, kaju, pinged } = await createPlan(ctx.db, ctx.n, user, { kind: w.kind, fromPlace: w.from!, toPlace: w.to!, departAt: new Date(w.at!), seats }, ctx.now);
-  const what = w.kind === "offer" ? `${vehicleEmoji(user.vehicle)} heading to <b>${placeName(plan.toPlace)}</b> with ${plan.seats} seat${plan.seats > 1 ? "s" : ""}` : `looking for a ride to <b>${placeName(plan.toPlace)}</b>`;
-  const tail = pinged ? `I pinged ${pinged} ${pinged === 1 ? "person" : "people"} who might match. 🤞` : "I'll ping you the moment someone matches.";
+  const { plan, kaju, pinged } = await createPlan(ctx.db, ctx.n, user, { kind: w.kind, fromPlace: w.from!, toPlace: w.to!, departAt: new Date(w.at!), seats, note: w.note }, ctx.now);
+  const what = w.kind === "offer"
+    ? `${vehicleEmoji(user.vehicle)} heading to <b>${placeName(plan.toPlace)}</b> with ${plan.seats} seat${plan.seats > 1 ? "s" : ""}`
+    : plan.toPlace === ERRAND.id ? `looking for <b>${destName(plan.toPlace, plan.note)}</b>` : `looking for a ride to <b>${placeName(plan.toPlace)}</b>`;
+  const unpinned = !located(placeById(plan.fromPlace));
+  const tail = pinged
+    ? `I pinged ${pinged} ${pinged === 1 ? "person" : "people"} who might match. 🤞`
+    : `I'll ping you the moment someone matches.${unpinned && plan.kind === "request" ? " (Floaters can't see where that start is yet. A pin helps: name it again under ➕ Somewhere else and drop one.)" : ""}`;
   await say(ctx, chatId, `Posted! You're ${what} from ${placeName(plan.fromPlace)} around <b>${istHHMM(plan.departAt)}</b>.\n+${kaju} kaju${kaju >= 15 ? " (early bird!)" : ""}. ${tail}`, [
     [{ text: "Cancel this plan", data: `cxp:${plan.id}` }],
   ]);
@@ -114,7 +141,7 @@ async function mine(ctx: Ctx, chatId: number, user: User) {
     rows.push([{ text: `Can't make the ${istHHMM(r.departAt)} ride`, data: `cxr:${r.id}` }]);
   }
   for (const p of ps.filter((p) => p.status === "open")) {
-    lines.push(`${p.kind === "offer" ? "🛵 Going" : "🙋 Want to go"} to <b>${placeName(p.toPlace)}</b> around ${istHHMM(p.departAt)}${p.kind === "offer" ? ` · ${p.seats} seat(s) free` : ""}`);
+    lines.push(`${p.kind === "offer" ? "🛵 Going" : "🙋 Want to go"} to <b>${destName(p.toPlace, p.note)}</b> around ${istHHMM(p.departAt)}${p.kind === "offer" ? ` · ${p.seats} seat(s) free` : ""}`);
     rows.push([{ text: `Cancel ${istHHMM(p.departAt)} → ${placeName(p.toPlace)}`, data: `cxp:${p.id}` }]);
   }
   await say(ctx, chatId, lines.join("\n"), rows);
@@ -131,12 +158,28 @@ const FLOAT_HELP =
   "🌴 <b>Float</b>: tap 📎 → <b>Location</b> → <b>Share My Live Location</b>.\n\nWhile it's on, I'll ping you when someone near you needs a ride, and you earn 5 kaju every 15 minutes (7am–11pm).\n\n<b>The deal:</b> floaters say yes. If you turn down (or ignore) a nearby request, you weren't really floating: −10 kaju, the last hour isn't paid, and your float ends. Busy? Just /stop first, no penalty.";
 
 export async function handleUpdate(ctx: Ctx, u: Update) {
+  await loadPlaces(ctx.db);
   if (u.callback_query) return onButton(ctx, u.callback_query);
   const m = u.message ?? u.edited_message;
   if (!m?.from || m.chat.type !== "private") return;
   const { user, isNew } = await upsertTelegramUser(ctx.db, m.from);
   const chatId = m.chat.id;
   const text = m.text?.trim() ?? "";
+
+  // bugs and ideas work for anyone, signed up or not: /bug, /error, /feature (request) …, /idea …
+  const [cmd0, ...words] = text.split(/\s+/);
+  const reportKind = REPORT_CMDS[cmd0?.toLowerCase().replace(/@.*$/, "") ?? ""];
+  const startArg = cmd0 === "/start" ? words[0] ?? "" : "";
+  if (reportKind || startArg === "bug" || startArg === "feature") {
+    const kind = reportKind ?? (startArg as ReportKind);
+    const body = (reportKind ? words : []).join(" ").replace(/^request\b[:\s]*/i, "").trim();
+    if (!body) {
+      await updateUser(ctx.db, user.id, { botState: { report: kind } satisfies Reporting });
+      return say(ctx, chatId, kind === "bug" ? "🐞 What went wrong? Tell me in one message (what you tapped, what you expected)." : "💡 What should Pillion do? Tell me in one message.");
+    }
+    return report(ctx, chatId, user, kind, body);
+  }
+  if (isReporting(user.botState) && text && !text.startsWith("/")) return report(ctx, chatId, user, user.botState.report, text);
 
   if (isNew || !user.onboardedAt) {
     if (!(await isVillager(ctx.call, m.from.id))) {
@@ -156,6 +199,12 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
   }
   if (!user.onboardedAt) return welcome(ctx, chatId, user);
 
+  const w = isWizard(user.botState) ? user.botState : null;
+  if (m.location && w?.step === "pin" && w.pinFor && !m.edit_date) {
+    await pinPlace(ctx.db, w.pinFor, { lat: m.location.latitude, lng: m.location.longitude });
+    await say(ctx, chatId, `📍 Pinned <b>${placeName(w.pinFor)}</b> for everyone. Thank you!`);
+    return afterNamed(ctx, chatId, user, w, w.pinFor);
+  }
   if (m.location) {
     const live = m.location.live_period ?? null;
     const res = await locate(ctx.db, ctx.n, user, { lat: m.location.latitude, lng: m.location.longitude, livePeriod: live }, ctx.now);
@@ -167,7 +216,17 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
     return;
   }
 
-  const w = user.botState as Wizard | null;
+  if (w?.step === "name" && text && !text.startsWith("/")) {
+    const { place, added } = await findOrAddPlace(ctx.db, user, text, null);
+    if (added) {
+      await updateUser(ctx.db, user.id, { botState: { ...w, step: "pin", pinFor: place.id } satisfies Wizard });
+      return say(ctx, chatId, `✨ <b>${placeName(place.id)}</b> is new on Pillion. Drop a pin so floaters can find it: 📎 → <b>Location</b> → move the map to the spot → <b>Send selected location</b> (not live).`, [[{ text: "Skip the pin", data: "w:skip" }]]);
+    }
+    return afterNamed(ctx, chatId, user, w, place.id);
+  }
+  if (w?.step === "errand" && text && !text.startsWith("/")) {
+    return afterErrand(ctx, chatId, user, { ...w, note: text.slice(0, 80) });
+  }
   if (w?.step === "time" && text && !text.startsWith("/")) {
     const t = istTimeToday(text, ctx.now);
     if (!t) return say(ctx, chatId, "I didn't catch that time. Try <b>4:30pm</b> or <b>16:30</b>.", TIME_BUTTONS);
@@ -187,6 +246,13 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
     case "/kaju": return kajuInfo(ctx, chatId, user);
     case "/web": return say(ctx, chatId, "Your Pillion on the web (link works once, for 30 minutes):", [[{ text: "🌐 Open Pillion", url: await webLink(ctx, user) }]]);
     case "/wheels": return say(ctx, chatId, "What are you riding these days?", VEHICLE_BUTTONS);
+    case "/admin":
+    case "/staff": {
+      if (!isStaff(user)) return say(ctx, chatId, "That's for the Pillion team. Spotted a problem? /bug tells them. 💛");
+      const path = isAdmin(user) ? "/admin" : "/staff";
+      return say(ctx, chatId, `Your ${isAdmin(user) ? "admin" : "staff"} dashboard (link works once, for 30 minutes):`, [[{ text: "📊 Open dashboard", url: await webLink(ctx, user, path) }]]);
+    }
+    case "/help": return say(ctx, chatId, HELP, MENU);
     case "/name": {
       const name = rest.join(" ").trim().slice(0, 32);
       if (!name) return say(ctx, chatId, "Send <b>/name</b> followed by what the village should call you.");
@@ -205,11 +271,53 @@ async function afterTime(ctx: Ctx, chatId: number, user: User, w: Wizard) {
   return finishWizard(ctx, chatId, user, w, 1);
 }
 
+const REPORT_CMDS: Record<string, ReportKind | undefined> = {
+  "/bug": "bug", "/error": "bug", "/feature": "feature", "/idea": "feature", "/request": "feature", "/featurerequest": "feature",
+};
+
+const HELP = [
+  "<b>Pillion</b> (beta: an experiment, thank you for testing!)",
+  "/go: I'm going somewhere, with a seat",
+  "/ride: I need a ride (or a quick errand and back)",
+  "/float: how floating works · /stop: stop floating",
+  "/mine: my plans and rides · /kaju: my kaju",
+  "/wheels: change vehicle · /name: change name · /web: open the site",
+  "/bug what broke · /feature what you wish it did",
+].join("\n");
+
+async function report(ctx: Ctx, chatId: number, user: User, kind: ReportKind, text: string) {
+  if (isReporting(user.botState)) await updateUser(ctx.db, user.id, { botState: null });
+  try {
+    const r = await fileReport(ctx.db, ctx.n, user, { kind, text, source: "telegram" }, ctx.now);
+    return say(ctx, chatId, `${kind === "bug" ? "🐞 Got it, bug" : "💡 Lovely, idea"} #${r.id} is with the team. Pillion is a beta, so this really helps. I'll tell you when it's sorted.`);
+  } catch (e) {
+    if (e instanceof GameError) return say(ctx, chatId, e.message);
+    throw e;
+  }
+}
+
+/** A place was picked by name (new or known): carry on to the next step. */
+async function afterNamed(ctx: Ctx, chatId: number, user: User, w: Wizard, placeId: string) {
+  if (w.naming === "from") {
+    if (placeId === w.to) return say(ctx, chatId, "That's where you're going! Where are you starting from?", placeGrid("w:from", { skip: w.to }));
+    await updateUser(ctx.db, user.id, { botState: { ...w, from: placeId, step: "time", naming: undefined, pinFor: undefined } satisfies Wizard });
+    return say(ctx, chatId, "Around when? Tap one, or type a time like <b>4:30pm</b>. (Earlier plans earn more kaju!)", TIME_BUTTONS);
+  }
+  await updateUser(ctx.db, user.id, { botState: { ...w, to: placeId, step: "from", naming: undefined, pinFor: undefined } satisfies Wizard });
+  return say(ctx, chatId, `To <b>${placeName(placeId)}</b>. Starting from?`, placeGrid("w:from", { skip: placeId }));
+}
+
+async function afterErrand(ctx: Ctx, chatId: number, user: User, w: Wizard) {
+  await updateUser(ctx.db, user.id, { botState: { ...w, step: "from" } satisfies Wizard });
+  return say(ctx, chatId, "🧺 Errand and back. Where are you now? A floater nearby picks you up there and drops you back.", placeGrid("w:from"));
+}
+
 async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
   const chatId = q.message?.chat.id ?? q.from.id;
   const data = q.data ?? "";
   let toast = "";
   try {
+    await loadPlaces(ctx.db);
     const { user } = await upsertTelegramUser(ctx.db, q.from);
     const [a, b, c] = data.split(":");
     if (a !== "veh" && a !== "seats" && !user.onboardedAt) {
@@ -228,12 +336,26 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       else if (b === "mine") await mine(ctx, chatId, user);
       else if (b === "kaju") await kajuInfo(ctx, chatId, user);
       else if (b === "web") await say(ctx, chatId, "Here you go (works once, for 30 minutes):", [[{ text: "🌐 Open Pillion", url: await webLink(ctx, user) }]]);
+      else if (b === "bug" || b === "feature") {
+        await updateUser(ctx.db, user.id, { botState: { report: b } satisfies Reporting });
+        await say(ctx, chatId, b === "bug" ? "🐞 What went wrong? Tell me in one message." : "💡 What should Pillion do? Tell me in one message.");
+      }
     } else if (a === "w") {
-      const w = user.botState as Wizard | null;
+      const w = isWizard(user.botState) ? user.botState : null;
       if (!w) toast = "That plan form expired. Start again from the menu.";
-      else if (b === "to") {
+      else if ((b === "to" || b === "from") && c === "+new") {
+        await updateUser(ctx.db, user.id, { botState: { ...w, step: "name", naming: b } satisfies Wizard });
+        await say(ctx, chatId, "Type the place's name: a stay, a café, a beach shack, anything. (e.g. <b>Banyan stay</b>, <b>the German bakery</b>)");
+      } else if (b === "skip" && w.step === "pin" && w.pinFor) {
+        await afterNamed(ctx, chatId, user, w, w.pinFor);
+      } else if (b === "skip" && w.step === "errand") {
+        await afterErrand(ctx, chatId, user, w);
+      } else if (b === "to" && c === ERRAND.id) {
+        await updateUser(ctx.db, user.id, { botState: { ...w, to: ERRAND.id, step: "errand" } satisfies Wizard });
+        await say(ctx, chatId, "🧺 What's the errand? (e.g. <b>pharmacy</b>, <b>ATM</b>, <b>pick up laundry</b>)", [[{ text: "Skip", data: "w:skip" }]]);
+      } else if (b === "to") {
         await updateUser(ctx.db, user.id, { botState: { ...w, to: c, step: "from" } });
-        await say(ctx, chatId, `To <b>${placeName(c)}</b>. Starting from?`, placeGrid("w:from", c));
+        await say(ctx, chatId, `To <b>${placeName(c)}</b>. Starting from?`, placeGrid("w:from", { skip: c }));
       } else if (b === "from") {
         await updateUser(ctx.db, user.id, { botState: { ...w, from: c, step: "time" } });
         await say(ctx, chatId, "Around when? Tap one, or type a time like <b>4:30pm</b>. (Earlier plans earn more kaju!)", TIME_BUTTONS);

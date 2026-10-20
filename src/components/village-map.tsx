@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useAvatar } from "./avatar-store";
-import { PLACES, placeById } from "@/lib/places";
+import { PLACES } from "@/lib/places";
 
 export type MapPerson = { id: number; name: string; avatar: string | null; scooty: string; vehicle?: string; floatAt?: string };
 
@@ -162,7 +162,7 @@ export function VillageMap({ people }: { people?: MapPerson[] } = {}) {
         </g>
       ))}
       {floaters.map((f, i) => {
-        const p = placeById(f.floatAt!)!;
+        const p = PLACES.find((x) => x.id === f.floatAt) ?? PLACES[0];
         const dx = ((i % 3) - 1) * 34;
         return (
           <g key={`f${f.id}`} className="floater" transform={`translate(${p.map.x + dx},${p.map.y + 34})`}>

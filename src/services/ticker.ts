@@ -8,12 +8,14 @@ import { istDay, istDayStart, istHHMM, istMinuteOfDay } from "@/lib/time";
 import { checkQuietFloats, closeExpiredFloats, resolvePings } from "./floats";
 import { expireRides } from "./rides";
 import { expirePlans } from "./plans";
+import { loadPlaces } from "./places";
 import { awardWinners, computeWinners, namesFor, PRIZE_KAJU, PRIZES } from "./prizes";
 
 export { once } from "./once";
 import { once } from "./once";
 
 export async function tick(db: Db, n: Notifier, now: Date) {
+  await loadPlaces(db);
   await resolvePings(db, n, now);
   await checkQuietFloats(db, n, now);
   await closeExpiredFloats(db, n, now);

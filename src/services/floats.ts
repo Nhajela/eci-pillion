@@ -5,7 +5,7 @@ import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { floatKaju, KAJU } from "@/lib/kaju";
 import { FLOAT_RADIUS_M, MATCH_WINDOW_MIN, VILLAGE_RADIUS_M } from "@/lib/match";
-import { distanceM, nearestPlace, placeById, placeName } from "@/lib/places";
+import { destName, distanceM, located, nearestPlace, placeById, placeName } from "@/lib/places";
 import { floatableMinutes, istDay, istHHMM, istMinuteOfDay } from "@/lib/time";
 import { award, earnedToday } from "./kaju";
 import { GameError } from "./errors";
@@ -39,7 +39,7 @@ export async function pingFloater(db: Db | Tx, n: Notifier, floater: User, float
   if (!r.length) return false;
   await n.dm({
     to: floater.telegramId,
-    text: `${pick(LINES.rideWanted, { name: esc(owner.name), from: placeName(req.fromPlace), to: placeName(req.toPlace), time: istHHMM(req.departAt) })}\n<i>You're floating, so answer within ${KAJU.floaterAnswerMin} min, please.</i>`,
+    text: `${pick(LINES.rideWanted, { name: esc(owner.name), from: placeName(req.fromPlace), to: destName(req.toPlace, req.note), time: istHHMM(req.departAt) })}\n<i>You're floating, so answer within ${KAJU.floaterAnswerMin} min, please.</i>`,
     buttons: floaterButtons(req.id),
   });
   return true;
@@ -80,7 +80,7 @@ export async function locate(db: Db, n: Notifier, user: User, loc: { lat: number
   let told = 0;
   for (const { p, u } of reqs) {
     const from = placeById(p.fromPlace);
-    if (u.id === user.id || !from || distanceM(loc, from) > FLOAT_RADIUS_M || told >= 3) continue;
+    if (u.id === user.id || !located(from) || distanceM(loc, from) > FLOAT_RADIUS_M || told >= 3) continue;
     if (await pingFloater(db, n, user, f, p, u, now)) told++;
   }
   return { started: true, near };

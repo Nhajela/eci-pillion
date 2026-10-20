@@ -3,10 +3,16 @@ import type { Db } from "@/db";
 import { users, type User } from "@/db/schema";
 import { KAJU } from "@/lib/kaju";
 import { award } from "./kaju";
+import { applyBootstrap } from "./roles";
 
 export type TgUser = { id: number; first_name?: string; last_name?: string; username?: string };
 
 export async function upsertTelegramUser(db: Db, tg: TgUser): Promise<{ user: User; isNew: boolean }> {
+  const r = await upsertRaw(db, tg);
+  return { ...r, user: await applyBootstrap(db, r.user) };
+}
+
+async function upsertRaw(db: Db, tg: TgUser): Promise<{ user: User; isNew: boolean }> {
   const [existing] = await db.select().from(users).where(eq(users.telegramId, tg.id));
   if (existing) {
     if (tg.username !== undefined && existing.username !== tg.username) {

@@ -10,7 +10,8 @@ export const users = pgTable("users", {
   telegramId: bigint("telegram_id", { mode: "number" }).notNull().unique(),
   username: text("username"),
   name: text("name").notNull(),
-  vehicle: text("vehicle").notNull().default("none"), // scooty | bike | none
+  vehicle: text("vehicle").notNull().default("none"), // scooty | bike | car | none
+  role: text("role").notNull().default("member"), // member | staff (sees the dashboard) | admin (changes things)
   seats: integer("seats").notNull().default(0),
   avatar: text("avatar"), // data:image/png;base64,… (128 px)
   scooty: text("scooty").notNull().default("#7fd1b9"),
@@ -125,6 +126,37 @@ export const floatPings = pgTable(
   (t) => [uniqueIndex("float_pings_once").on(t.floatId, t.requestId), index("float_pings_pending").on(t.outcome, t.pingedAt)],
 );
 
+/** Places people go. Seeded from src/lib/places.ts; anyone can add one by naming it (and dropping a pin),
+ *  admins rename, hide or pin it as a hub. A place without coordinates matches by name only. */
+export const places = pgTable("places", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
+  kind: text("kind").notNull().default("spot"), // hub | spot | stay | event
+  hidden: boolean("hidden").notNull().default(false),
+  note: text("note"),
+  addedBy: integer("added_by").references(() => users.id),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+/** Bugs and feature requests (beta). Admins get a Telegram DM for each one. */
+export const reports = pgTable(
+  "reports",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").references(() => users.id),
+    kind: text("kind").notNull(), // bug | feature
+    text: text("text").notNull(),
+    source: text("source").notNull(), // telegram | web
+    page: text("page"),
+    status: text("status").notNull().default("new"), // new | doing | done | wontdo
+    createdAt: ts("created_at").notNull().defaultNow(),
+    updatedAt: ts("updated_at"),
+  },
+  (t) => [index("reports_status").on(t.status, t.createdAt)],
+);
+
 /** Scheduled messages already sent (idempotency for the ticker). */
 export const sentKeys = pgTable("sent_keys", {
   key: text("key").primaryKey(),
@@ -135,3 +167,5 @@ export type User = typeof users.$inferSelect;
 export type Plan = typeof plans.$inferSelect;
 export type Ride = typeof rides.$inferSelect;
 export type Float = typeof floats.$inferSelect;
+export type PlaceRow = typeof places.$inferSelect;
+export type Report = typeof reports.$inferSelect;

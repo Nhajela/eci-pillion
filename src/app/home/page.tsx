@@ -8,7 +8,8 @@ import { db } from "@/db";
 import { rides, users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { nearestPlace, placeName } from "@/lib/places";
+import { allPlaces, destName, nearestPlace, placeName } from "@/lib/places";
+import { loadPlaces } from "@/services/places";
 import { istHHMM } from "@/lib/time";
 import { maxSeats, vehicleEmoji } from "@/lib/kaju";
 import { activeFloats } from "@/services/floats";
@@ -27,6 +28,7 @@ export default async function Home() {
   if (!user) redirect("/login");
   const now = new Date();
   const d = db();
+  await loadPlaces(d);
   const [kaju, hist, mine, board, live, floats] = await Promise.all([
     balance(d, user.id), history(d, user.id, 8), myPlans(d, user.id, now), openPlans(d, now), myRides(d, user.id), activeFloats(d, now),
   ]);
@@ -72,7 +74,7 @@ export default async function Home() {
             ))}
             {mine.filter((p) => p.status === "open").map((p) => (
               <div key={`p${p.id}`} className="line">
-                <span>{p.kind === "offer" ? `🛵 Going, ${p.seats} seat${p.seats > 1 ? "s" : ""} free` : "🙋 Looking for a ride"} · <b>{istHHMM(p.departAt)}</b> {placeName(p.fromPlace)} → <b>{placeName(p.toPlace)}</b></span>
+                <span>{p.kind === "offer" ? `🛵 Going, ${p.seats} seat${p.seats > 1 ? "s" : ""} free` : "🙋 Looking for a ride"} · <b>{istHHMM(p.departAt)}</b> {placeName(p.fromPlace)} → <b>{destName(p.toPlace, p.note)}</b></span>
                 <ActButton body={{ action: "cancelPlan", id: p.id }} className="btn small ghost">Cancel</ActButton>
               </div>
             ))}
@@ -81,7 +83,7 @@ export default async function Home() {
 
         <section className="card">
           <h2>Post a plan</h2>
-          <PlanForm hasWheels={user.vehicle !== "none"} maxSeats={Math.max(1, Math.min(user.seats, maxSeats(user.vehicle)))} car={user.vehicle === "car"} />
+          <PlanForm places={allPlaces().map((p) => ({ id: p.id, name: p.name, kind: p.kind }))} hasWheels={user.vehicle !== "none"} maxSeats={Math.max(1, Math.min(user.seats, maxSeats(user.vehicle)))} car={user.vehicle === "car"} />
         </section>
 
         <section className="card">
@@ -97,7 +99,7 @@ export default async function Home() {
           {requests.length > 0 && <h3>People looking for a ride</h3>}
           {requests.map(({ plan, user: u }) => (
             <div key={plan.id} className="line">
-              <span className="who"><Face u={u} /><span><b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{placeName(plan.toPlace)}</b></span></span>
+              <span className="who"><Face u={u} /><span><b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{destName(plan.toPlace, plan.note)}</b></span></span>
               {user.vehicle !== "none" && <ActButton body={{ action: "take", id: plan.id }} done="Matched! Check Telegram. 🛵">I&apos;ll take them</ActButton>}
             </div>
           ))}

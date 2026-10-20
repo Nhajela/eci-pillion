@@ -18,7 +18,7 @@ const ROLES = [
     key: "hitcher",
     title: "Hitcher",
     tag: "No scooty? No problem. Say the word.",
-    body: "Post “around 4pm I want to go to the pharmacy,” and the village finds you a seat. Need one right now? Send a ride-now alert. Fewer kaju, same goodwill. One helmet, one person, twenty minutes.",
+    body: "Post “around 4pm I want to go to Riva,” and the village finds you a seat. Need to pop to the pharmacy and come straight back? Ask for a quick errand: a floater nearby takes you and brings you home. Need one right now? Send a ride-now alert. Fewer kaju, same goodwill.",
   },
   {
     key: "floater",
@@ -49,6 +49,7 @@ const PRIZES = [
 ];
 
 const ROADMAP = (live: boolean) => [
+  ["Beta: bugs, ideas, any place, errands", "live now", "Type /bug or /feature in the bot. Name any stay or café as a destination. Ask for a quick errand and back."],
   ["This page + your avatar", "live now", "Draw yourself. It's saved in your browser and comes with you when you log in."],
   ["Telegram login", live ? "live now" : "built, bot waking up", "Your avatar meets your Telegram name. Now the village knows you."],
   ["Sign-up, rides, floating, kaju", live ? "live now" : "built, bot waking up", "Pilots post, hitchers hop, floaters float. The map wakes up."],
@@ -57,6 +58,9 @@ const ROADMAP = (live: boolean) => [
 
 const FAQ = [
   ["Is it free?", "Yes. Kaju is pretend money. Rides are favours between neighbours. The prizes are real, but you can't buy them, only earn them."],
+  ["Is this finished?", "No! Pillion is a beta and an experiment. Some things will be wobbly. Tap the 🧪 Beta button (or type /bug or /feature in the bot) and the team hears about it straight away."],
+  ["Where can I go?", "Anywhere around the village. Riva and the Circle are the hubs and come first in every list, and the evening community dinner is always there. Staying somewhere that isn't listed? Pick “Somewhere else”, type its name, and drop a pin: it's on the list for everyone from then on. Places close together count as the same destination, so the stay next to Riva matches rides to Riva."],
+  ["Can I just pop to a shop and back?", "Yes. Ask for a ride and pick “Quick errand nearby & back”, then say what it's for (pharmacy, ATM, laundry). A floater near you gets pinged, takes you, waits or comes back, and drops you home."],
   ["Is it a taxi?", "No. Nobody's working. It's one villager going somewhere and another one tagging along. For the Riva ↔ Circle run, the shuttle is still your friend."],
   ["Cars too?", "Yes! Pick 🚗 when you sign up (or /wheels later) and offer as many seats as you have. Each passenger is its own ride, so a full car is a lot of kaju."],
   ["Do I need a scooty?", "Not at all. Hitchers earn kaju too, and half the village is on foot. You just need Telegram and somewhere to be."],
@@ -73,11 +77,11 @@ export default async function Home() {
       <header className="hero">
         <img className="hero-art" src="/art/hero.webp" alt="" />
         <div className="hero-text">
-          <p className="eyebrow">Edge City India · Mandrem · 11 Oct – 1 Nov</p>
+          <p className="eyebrow">Edge City India · Mandrem · 11 Oct – 1 Nov <span className="beta-pill">beta</span></p>
           <h1>Your scooty has a lonely back seat.</h1>
           <p className="sub">
-            Pillion matches people with scooties to people without them, all over the village. Rides earn
-            kaju. Kaju wins prizes. Nobody&apos;s late to Arambol.
+            Pillion matches people with scooties (and a few cars) to people without them, all over the village.
+            Rides earn kaju. Kaju wins prizes. Nobody&apos;s late to dinner.
           </p>
           <div className="hero-ctas">
             {user ? (
@@ -95,15 +99,47 @@ export default async function Home() {
 
       <Ticker />
 
+      <section className="beta-section" aria-labelledby="beta-h">
+        <div className="beta-card">
+          <span className="stamp">Beta · an experiment</span>
+          <h2 id="beta-h">This is a beta, and an experiment. Let&apos;s test it out together.</h2>
+          <p>
+            Pillion is our experiment in sharing rides around the village. Most of us have a back seat that rides
+            empty, or a car with three spare seats, and most of us have stood at Riva wondering how to get to the
+            Circle. We think the village can fix that for itself, if we plan a little.
+          </p>
+          <p>
+            <b>That&apos;s why we reward planning.</b> We want finding a ride to be predictable, not a last-minute,
+            half-hearted scramble. When you say at breakfast that you&apos;re going to Arambol at four, someone can
+            plan around you. So early plans earn the most kaju, and a ride-now alert earns a little.
+          </p>
+          <ul>
+            <li>Riva and the Circle are the hubs. Any stay, café or tonight&apos;s dinner can be a destination: just type it.</li>
+            <li>Need to pop to a shop nearby and come back? Ask for a quick errand; a floater close by takes you.</li>
+            <li>Scooties carry one pillion, cars up to six.</li>
+          </ul>
+          <p>Some things will break. Please tell us when they do, and tell us what you wish it did.</p>
+          <div className="beta-ctas">
+            {live ? (
+              <>
+                <a className="btn small" href={`https://t.me/${env.botUsername()}?start=bug`}>🐞 Report a bug</a>
+                <a className="btn small ghost" href={`https://t.me/${env.botUsername()}?start=feature`}>💡 Suggest an idea</a>
+              </>
+            ) : null}
+          </div>
+          <p className="fine">In the bot: <b>/bug</b> what broke · <b>/feature</b> what you wish it did. Or tap 🧪 Beta in the corner of any page.</p>
+        </div>
+      </section>
+
       <section className="map-section" aria-labelledby="map-h">
-        <h2 id="map-h">The village, in scooties</h2>
+        <h2 id="map-h">The village, in scooties (and a few cars)</h2>
         <p className="lede">A toy map for now. Once rides begin, these are real people: you, your neighbours, and that one floater who never seems to leave Ashwem.</p>
         <div className="map-scroll"><VillageMap /></div>
         <p className="fine map-hint">← swipe the map →</p>
       </section>
 
       <section id="how" aria-labelledby="how-h">
-        <h2 id="how-h">Three ways to play</h2>
+        <h2 id="how-h">Three ways to play <span className="beta-pill">beta</span></h2>
         <p className="lede">Be any of them, any day. Most people end up being all three.</p>
         <div className="roles">
           {ROLES.map((r) => (
@@ -145,6 +181,10 @@ export default async function Home() {
             at four, and it has all day to find your match, and to nudge the one person who was quietly
             hoping someone would say exactly that. A ride-now alert works too, but it only has minutes, and
             it only sees who&apos;s floating nearby.
+          </p>
+          <p>
+            We&apos;d rather value your planning than your speed. A village where people say early where they&apos;re
+            going is one where a ride is something you can count on, not something you hope for.
           </p>
           <p><b>Early plans turn the village into a timetable. Late ones turn it into luck.</b></p>
         </div>
@@ -198,7 +238,7 @@ export default async function Home() {
 
       <footer>
         <p>Made in Mandrem, with one spare seat and a bag of cashews.</p>
-        <p className="fine">Pillion · Edge City India 2026</p>
+        <p className="fine">Pillion <span className="beta-pill">beta</span> · an experiment in sharing rides · Edge City India 2026</p>
       </footer>
     </main>
   );

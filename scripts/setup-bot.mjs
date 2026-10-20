@@ -19,7 +19,7 @@ await call("setWebhook", {
 await call("setMyCommands", {
   commands: [
     { command: "go", description: "🛵 I'm going somewhere (offer a seat)" },
-    { command: "ride", description: "🙋 I need a ride" },
+    { command: "ride", description: "🙋 I need a ride (or a quick errand and back)" },
     { command: "float", description: "🌴 Float: share live location, get pinged" },
     { command: "stop", description: "Stop floating" },
     { command: "mine", description: "📋 My plans and rides" },
@@ -27,8 +27,11 @@ await call("setMyCommands", {
     { command: "web", description: "🌐 Open Pillion on the web" },
     { command: "name", description: "Change what the village calls you" },
     { command: "wheels", description: "🛵/🚗 Change your vehicle and seats" },
+    { command: "bug", description: "🐞 Report a bug (Pillion is a beta)" },
+    { command: "feature", description: "💡 Suggest a feature" },
+    { command: "help", description: "All the commands" },
   ],
 });
-await call("setMyDescription", { description: "Pillion: spare scooty seats find people across the Edge City village. Post where you're going, hop on, float, earn kaju. 🛵🥜" });
+await call("setMyDescription", { description: "Pillion (beta): spare scooty and car seats find people across the Edge City village. Post where you're going, hop on, float, earn kaju. An experiment: /bug and /feature reach the team. 🛵🥜" });
 const me = await call("getMe", {});
 console.log(`@${me.username} → ${origin}/api/telegram (webhook + commands set)`);

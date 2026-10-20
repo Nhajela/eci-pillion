@@ -5,7 +5,7 @@ import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { KAJU, maxSeats, planKaju } from "@/lib/kaju";
 import { floaterNear, offerFitsRequest } from "@/lib/match";
-import { placeById, placeName } from "@/lib/places";
+import { destName, ERRAND, placeById, placeName } from "@/lib/places";
 import { istDay, istHHMM } from "@/lib/time";
 import { award, earnedToday } from "./kaju";
 import { cancelRideInTx, type Effects } from "./rides";
@@ -19,13 +19,14 @@ export type NewPlan = { kind: "offer" | "request"; fromPlace: string; toPlace: s
 
 export function validatePlan(input: NewPlan, now: Date, seatCap = 1) {
   if (input.kind !== "offer" && input.kind !== "request") throw new GameError("Pilot or hitcher?");
-  if (!placeById(input.fromPlace) || !placeById(input.toPlace)) throw new GameError("Pick places from the list.");
+  if (!placeById(input.fromPlace) || !placeById(input.toPlace) || input.fromPlace === ERRAND.id) throw new GameError("Pick places from the list.");
+  if (input.toPlace === ERRAND.id && input.kind === "offer") throw new GameError("Errands are for asking a floater. Going somewhere? Pick where.");
   if (input.fromPlace === input.toPlace) throw new GameError("That's where you already are!");
   const t = input.departAt.getTime();
   if (Number.isNaN(t) || t < now.getTime() - 10 * 60_000) throw new GameError("That time has already gone by.");
   if (t > now.getTime() + 36 * 3600_000) throw new GameError("Plans can be up to a day and a half ahead.");
   const seats = input.kind === "offer" ? Math.min(Math.max(1, seatCap), Math.max(1, input.seats ?? 1)) : 1;
-  return { ...input, seats, note: input.note?.trim().slice(0, 120) || null };
+  return { ...input, seats, note: input.note?.replace(/[<>&]/g, "").trim().slice(0, 120) || null };
 }
 
 const offerButtons = (offerId: number) => [[{ text: "🛵 Hop on", data: `hop:${offerId}` }]];
@@ -47,7 +48,7 @@ export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan
 
   const when = istHHMM(plan.departAt);
   if (lead >= 120 && got > 0 && (await once(db, `earlybird:${user.id}:${istDay(now)}`))) {
-    await n.announce(pick(LINES.earlyBird, { name: esc(user.name), to: placeName(plan.toPlace), time: when, hoursAhead: Math.floor(lead / 60) }));
+    await n.announce(pick(LINES.earlyBird, { name: esc(user.name), to: esc(destName(plan.toPlace, plan.note)), time: when, hoursAhead: Math.floor(lead / 60) }));
   }
   const pinged = await pingMatches(db, n, user, plan, now);
   return { plan, kaju: got, pinged };
@@ -55,7 +56,7 @@ export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan
 
 /** DM everyone who could match this plan. Returns how many people were pinged. */
 export async function pingMatches(db: Db, n: Notifier, owner: User, plan: Plan, now: Date) {
-  const vals = { name: esc(owner.name), from: placeName(plan.fromPlace), to: placeName(plan.toPlace), time: istHHMM(plan.departAt) };
+  const vals = { name: esc(owner.name), from: esc(placeName(plan.fromPlace)), to: esc(destName(plan.toPlace, plan.note)), time: istHHMM(plan.departAt) };
   const open = await db
     .select({ p: plans, u: users })
     .from(plans)

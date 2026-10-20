@@ -11,3 +11,6 @@
 - **Env vars (Coolify, app):** `DATABASE_URL`, `SESSION_SECRET`, `TELEGRAM_WEBHOOK_SECRET` (generated, never printed),
   `PUBLIC_ORIGIN`. To switch the bot on, add `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME`, redeploy, then run
   `scripts/setup-bot.mjs` with the same token, webhook secret and origin. Optional: `ANNOUNCE_CHAT_ID`, `VERIFY_CHAT_IDS`.
+- **Admins:** `BOOTSTRAP_ADMINS` (Telegram usernames, comma-separated, @ optional; set to `HiiNaman`). Each becomes admin
+  the next time they message the bot. Admins then make others staff or admin on `/admin` → People. Admins get every
+  `/bug` and `/feature` as a Telegram DM.

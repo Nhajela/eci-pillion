@@ -5,7 +5,7 @@ import { VillageMap, type MapPerson } from "@/components/village-map";
 import { db, hasDb } from "@/db";
 import { hearts, kaju, rides, users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
-import { nearestPlace } from "@/lib/places";
+import { nearestMapPlace } from "@/lib/places";
 import { istDay, istDayStart } from "@/lib/time";
 import { activeFloats } from "@/services/floats";
 import { balance } from "@/services/kaju";
@@ -32,7 +32,7 @@ export default async function Today() {
   const riders = riderIds.length ? await d.select().from(users).where(inArray(users.id, riderIds)) : [];
   const floatIds = new Set(floats.map((f) => f.u.id));
   const people: MapPerson[] = [
-    ...floats.map((f) => ({ id: f.u.id, name: f.u.name, avatar: f.u.avatar, scooty: f.u.scooty, vehicle: f.u.vehicle, floatAt: nearestPlace(f.f).place.id })),
+    ...floats.map((f) => ({ id: f.u.id, name: f.u.name, avatar: f.u.avatar, scooty: f.u.scooty, vehicle: f.u.vehicle, floatAt: nearestMapPlace(f.f).place.id })),
     ...riders.filter((u) => !floatIds.has(u.id)).map((u) => ({ id: u.id, name: u.name, avatar: u.avatar, scooty: u.scooty, vehicle: u.vehicle })),
   ];
   const ids = winners.flatMap((w) => w.userIds);
