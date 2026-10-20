@@ -2,6 +2,7 @@
 
     secrets run -- python3 tools/paint/paint.py hero pilot
     secrets run -- python3 tools/paint/paint.py        # every subject
+    secrets run -- python3 tools/paint/paint.py edit:hero-cars   # edit an existing picture (EDITS)
 
 Writes tools/paint/out/<name>-<n>.png (git-ignored). A person picks one and
 copies it into public/art/. GEMINI_API_KEY is a Vertex key, read from the
@@ -60,6 +61,22 @@ SUBJECTS = {
         "bunch of marigolds, a cold drink, a hand-made medal on a ribbon. Plain cream background."),
 }
 
+# Edits of a picture already in public/art: (source, aspect ratio, instruction). Output name is the key.
+EDITS = {
+    "hero-cars": ("hero.webp", "16:9",
+        "Edit this illustration, keeping its style, palette, composition, lanes and characters exactly as they "
+        "are. Replace one or two of the scooters with small, cute, rounded little cars (a tiny mint or yellow "
+        "hatchback, windows down, a driver and one or two smiling passengers waving out of the window), driving "
+        "along the red lanes. Scooters must still clearly outnumber the cars: most rides are scooters. Keep the "
+        "calm empty sky in the top third. Absolutely no text, letters, numbers, logos or brand marks."),
+    "pilot-cars": ("pilot.webp", "1:1",
+        "Edit this illustration, keeping the scooter rider exactly as they are, in the same style and palette. "
+        "Behind them, slightly smaller, add a cute rounded little car (sunny yellow) with its driver leaning out "
+        "of the window and waving, the passenger door open invitingly. The scooter stays the hero in front; the "
+        "car is a friendly sidekick. Plain cream background, small soft shadows. Absolutely no text, letters, "
+        "numbers, logos or brand marks."),
+}
+
 
 def address():
     key = os.environ["GEMINI_API_KEY"]
@@ -71,9 +88,17 @@ def address():
 
 
 def paint(name, n):
-    ratio, subject = SUBJECTS[name]
+    if name.startswith("edit:"):
+        name = name[5:]
+        src, ratio, instruction = EDITS[name]
+        with open(os.path.join(HERE, "..", "..", "public", "art", src), "rb") as f:
+            image = base64.b64encode(f.read()).decode()
+        parts = [{"inlineData": {"mimeType": "image/webp", "data": image}}, {"text": instruction}]
+    else:
+        ratio, subject = SUBJECTS[name]
+        parts = [{"text": STYLE + subject}]
     body = {
-        "contents": [{"role": "user", "parts": [{"text": STYLE + subject}]}],
+        "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {
             "responseModalities": ["TEXT", "IMAGE"],
             "imageConfig": {"aspectRatio": ratio},
