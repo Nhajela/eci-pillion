@@ -76,3 +76,19 @@ back to it. Only floaters near `from` are pinged (an offer can't go to an errand
   text next. `t.me/<bot>?start=bug|feature` does the same (the site's links). On the web, the 🧪 Beta button on every
   page (logged in). Each report DMs every admin at once; 10 per person per hour. Admins move it new → doing → done /
   won't do; done or won't do sends the reporter a thank-you.
+
+## Onboarding (release 6)
+Step 1 in the bot: what do you ride (cars: seats). Step 2: draw yourself (a one-time link to `/avatar?welcome=1`, with
+"Later, show me the menu"). The site's home shows "One last step: draw yourself" until there's an avatar. The avatar
+maker is no longer on the landing page.
+
+## GIF moments (release 6, like the shuttle bot)
+Sent with `sendAnimation`, the text as caption; if Telegram refuses the GIF or the text is over 1024 characters, the
+text goes as a normal message (`send()` in `src/bot/telegram.ts`). Sparing: the `/start` welcome, a float starting,
+"matched" (both people), "ride done" (both people, with their kaju) and the 9pm prizes post. Files: `public/gifs/*.gif`,
+made by `tools/paint/gifs.py` from paintings a person picked.
+
+## /how-it-works
+The full explainer for villagers and the team: a tap-through village day, getting started, each role, places, the whole
+kaju table, prizes, fair play, every command, the beta, and "under the hood" for the team. Numbers come from the code's
+constants, so it can't drift from the rules.

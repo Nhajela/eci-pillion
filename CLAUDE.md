@@ -39,6 +39,9 @@ Each release must be useful on its own. Roadmap and status: `docs/ROADMAP.md`. G
 - Illustrations: `tools/paint/paint.py` (Gemini image via Vertex, `secrets run -- python3 tools/paint/paint.py <name>`).
   Raw takes go to `tools/paint/out/` (ignored); a person picks one, it is converted to webp in `public/art/`.
   No text, logos or brand marks in paintings.
+- Bot GIFs: `tools/paint/gifs.py` animates picked paintings (`PICKS`) into `public/gifs/*.gif`
+  (`uv run --with pillow python3 tools/paint/gifs.py`). Send one with `animation: gifUrl("…")` on a DM; keep them for
+  big moments only.
 
 ## Deploy
 Coolify on serenity, Dockerfile build pack, auto-deploys on push to `main`. Ids and domain: `docs/DEPLOY.md`.

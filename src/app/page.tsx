@@ -1,4 +1,3 @@
-import { AvatarMaker } from "@/components/avatar-maker";
 import { EarlySlider } from "@/components/early-slider";
 import { Ticker } from "@/components/ticker";
 import { VillageMap } from "@/components/village-map";
@@ -50,7 +49,7 @@ const PRIZES = [
 
 const ROADMAP = (live: boolean) => [
   ["Beta: bugs, ideas, any place, errands", "live now", "Type /bug or /feature in the bot. Name any stay or café as a destination. Ask for a quick errand and back."],
-  ["This page + your avatar", "live now", "Draw yourself. It's saved in your browser and comes with you when you log in."],
+  ["This page + your avatar", "live now", "Draw yourself right after you sign up: it's you on the map and next to your rides."],
   ["Telegram login", live ? "live now" : "built, bot waking up", "Your avatar meets your Telegram name. Now the village knows you."],
   ["Sign-up, rides, floating, kaju", live ? "live now" : "built, bot waking up", "Pilots post, hitchers hop, floaters float. The map wakes up."],
   ["Daily prizes", live ? "live now" : "built, bot waking up", "Every evening at 9, many small winners."],
@@ -89,9 +88,9 @@ export default async function Home() {
             ) : live ? (
               <a className="btn" href="/login">Join on Telegram</a>
             ) : (
-              <a className="btn" href="#avatar">Make my avatar</a>
+              <a className="btn" href="#how">Meet the three roles</a>
             )}
-            <a className="btn ghost" href={user || live ? "#avatar" : "#how"}>{user || live ? "Draw my avatar" : "How it works"}</a>
+            <a className="btn ghost" href="/how-it-works">How it works</a>
           </div>
           {live && !user && <p className="hint">Or say hi to <a href={`https://t.me/${env.botUsername()}`}>@{env.botUsername()}</a> directly.</p>}
         </div>
@@ -133,7 +132,7 @@ export default async function Home() {
 
       <section className="map-section" aria-labelledby="map-h">
         <h2 id="map-h">The village, in scooties (and a few cars)</h2>
-        <p className="lede">A toy map for now. Once rides begin, these are real people: you, your neighbours, and that one floater who never seems to leave Ashwem.</p>
+        <p className="lede">Once you sign up and draw yourself, that&apos;s you puttering around: you, your neighbours, and that one floater who never seems to leave Ashwem.</p>
         <div className="map-scroll"><VillageMap /></div>
         <p className="fine map-hint">← swipe the map →</p>
       </section>
@@ -191,10 +190,10 @@ export default async function Home() {
         <EarlySlider />
       </section>
 
-      <section id="avatar" className="avatar-section" aria-labelledby="avatar-h">
-        <h2 id="avatar-h">Draw yourself (badly is fine)</h2>
-        <p className="lede">A face, a blob, a cat: whatever rides the scooty is you. Save it and watch it putter around the map up top.</p>
-        <AvatarMaker />
+      <section className="how-teaser" aria-labelledby="teaser-h">
+        <h2 id="teaser-h">How it works, in full</h2>
+        <p className="lede">Step by step: signing up, posting a ride, floating, errands, places, every kaju rule, the prizes, and a village day you can tap through.</p>
+        <a className="btn" href="/how-it-works">Read how it works →</a>
       </section>
 
       <section className="prizes" aria-labelledby="prizes-h">
@@ -237,7 +236,7 @@ export default async function Home() {
       </section>
 
       <footer>
-        <p>Made in Mandrem, with one spare seat and a bag of cashews.</p>
+        <p>Made in Mandrem, with one spare seat and a bag of cashews. <a href="/how-it-works">How it works</a></p>
         <p className="fine">Pillion <span className="beta-pill">beta</span> · an experiment in sharing rides · Edge City India 2026</p>
       </footer>
     </main>
