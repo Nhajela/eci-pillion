@@ -14,6 +14,7 @@ import { getUser, updateUser, validAvatar, validColour } from "@/services/users"
 import { findOrAddPlace, loadPlaces, parsePin, savePlace } from "@/services/places";
 import { fileReport, setReportStatus } from "@/services/reports";
 import { requireAdmin, setRole } from "@/services/roles";
+import { inviteByUsername } from "@/services/invites";
 
 // One endpoint for every button on the site. Each action maps to one service call.
 const Body = z.discriminatedUnion("action", [
@@ -23,6 +24,7 @@ const Body = z.discriminatedUnion("action", [
     // "Somewhere else": a typed place name instead of an id
     fromName: z.string().max(60).optional(), toName: z.string().max(60).optional(),
   }),
+  z.object({ action: z.literal("invite"), username: z.string().min(1).max(64) }),
   z.object({ action: z.literal("report"), kind: z.enum(["bug", "feature"]), text: z.string().min(1).max(2000), page: z.string().max(200).optional() }),
   z.object({ action: z.literal("setRole"), id: z.number().int(), role: z.enum(["member", "staff", "admin"]) }),
   z.object({ action: z.literal("reportStatus"), id: z.number().int(), status: z.enum(["new", "doing", "done", "wontdo"]) }),
@@ -58,6 +60,10 @@ export async function POST(req: Request) {
   try {
     await loadPlaces(db());
     switch (b.action) {
+      case "invite": {
+        const r = await inviteByUsername(db(), user, b.username);
+        return NextResponse.json({ ok: true, username: r.username });
+      }
       case "report": {
         const r = await fileReport(db(), n, user, { kind: b.kind, text: b.text, source: "web", page: b.page }, now);
         return NextResponse.json({ ok: true, id: r.id });

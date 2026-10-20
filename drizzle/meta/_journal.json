@@ -29,6 +29,13 @@
       "when": 1792465145231,
       "tag": "0003_beta_admin_places",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792481407487,
+      "tag": "0004_invites",
+      "breakpoints": true
     }
   ]
 }

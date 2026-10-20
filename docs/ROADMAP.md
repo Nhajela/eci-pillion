@@ -5,6 +5,7 @@
 | 1 | Landing page + avatar maker + toy village map | live | Explains the game, gets people drawing avatars before anything else exists |
 | 2 | Telegram login | built; live when the bot token is set | Avatar attached to a real village member; we can count who's in |
 | 3 | Bot sign-up, plans, ride-now, floaters, matching, kaju ledger | built; live with the bot | Actual rides |
+| 7 | Invites + the village board | live (20 Oct) | Bringing friends pays (most when they actually ride); the village sees itself: rides shared, who's asking, milestones, leaders |
 | 6 | Onboarding avatar step, GIF moments, /how-it-works | live (20 Oct) | Drawing yourself is step 2 of sign-up, not a landing-page detour; the bot celebrates the big moments; one page explains everything |
 | 5 | Beta launch: bugs + ideas, admin/staff dashboards, any place, errands | live (20 Oct) | People tell us what breaks (/bug, /feature, 🧪 button), admins hear at once; stays, cafés and tonight's dinner become destinations without anyone editing a list; "pop to a shop and back" works |
 | 4 | Daily prizes + leaderboard | built; /today is live, 9pm post needs ANNOUNCE_CHAT_ID | Many small winners every evening |

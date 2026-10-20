@@ -10,6 +10,8 @@ import { istDay, istDayStart } from "@/lib/time";
 import { activeFloats } from "@/services/floats";
 import { balance } from "@/services/kaju";
 import { computeWinners, PRIZES } from "@/services/prizes";
+import { Pulse } from "@/components/pulse";
+import { pulse } from "@/services/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,7 @@ export default async function Today() {
     computeWinners(d, day),
     d.select({ toId: hearts.toId, n: sql<number>`count(*)::int` }).from(hearts).where(eq(hearts.day, day)).groupBy(hearts.toId),
   ]);
+  const village = await pulse(d, now);
   const riderIds = [...new Set(todaysRides.flatMap((r) => [r.pilotId, r.hitcherId]))];
   const riders = riderIds.length ? await d.select().from(users).where(inArray(users.id, riderIds)) : [];
   const floatIds = new Set(floats.map((f) => f.u.id));
@@ -46,6 +49,7 @@ export default async function Today() {
       <main className="app">
         <h1>Today in the village</h1>
         <p className="lede">{done} ride{done === 1 ? "" : "s"} done, {floats.length} floating right now. Prizes are handed out at 9pm.</p>
+        <Pulse p={village} compact />
         <div className="map-scroll"><VillageMap people={people} /></div>
 
         <section className="card">

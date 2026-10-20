@@ -15,6 +15,8 @@ export const KAJU = {
   floaterAnswerMin: 10, // minutes a pinged floater has to answer before it counts as a refusal
   pairRidesPerDay: 2, // the same pilot + hitcher are paid for at most 2 rides a day (no ride farming)
   lateCancelWindowMin: 30,
+  inviteJoin: 10, // someone you invited signs up
+  inviteRide: 15, // …and completes their first ride (the part that matters)
 } as const;
 
 /** Seats a vehicle can offer: a scooty or bike carries one pillion, a car up to 6. */

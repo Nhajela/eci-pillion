@@ -43,4 +43,6 @@ export const REASON_LABEL: Record<string, string> = {
   floater_refusal: "Turned down a request while floating",
   plan_cancel: "Cancelled a plan (kaju back)",
   prize: "Daily prize",
+  invite_join: "A friend you invited joined",
+  invite_ride: "A friend you invited took their first ride",
 };

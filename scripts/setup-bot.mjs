@@ -27,6 +27,8 @@ await call("setMyCommands", {
     { command: "web", description: "🌐 Open Pillion on the web" },
     { command: "name", description: "Change what the village calls you" },
     { command: "wheels", description: "🛵/🚗 Change your vehicle and seats" },
+    { command: "invite", description: "💌 Invite friends (kaju when they join and ride)" },
+    { command: "board", description: "🏘️ The village board" },
     { command: "bug", description: "🐞 Report a bug (Pillion is a beta)" },
     { command: "feature", description: "💡 Suggest a feature" },
     { command: "help", description: "All the commands" },

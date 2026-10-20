@@ -92,3 +92,20 @@ made by `tools/paint/gifs.py` from paintings a person picked.
 The full explainer for villagers and the team: a tap-through village day, getting started, each role, places, the whole
 kaju table, prizes, fair play, every command, the beta, and "under the hood" for the team. Numbers come from the code's
 constants, so it can't drift from the rules.
+
+## Invites (release 7, after the assassins game)
+- Personal link `t.me/<bot>?start=inv_<code>` (`/invite`, or the 💌 card on /home). Starting the bot through it before
+  signing up records `users.invited_by` (first one wins, never yourself).
+- `/invite @username` saves an invite in `invites` (one per username, ever; the first inviter gets it). When that Telegram
+  account signs up, link or not, it counts. Refused: yourself, someone already signed up, someone invited by another.
+- Kaju for the inviter: +10 `invite_join` when the friend signs up, +15 `invite_ride` when the friend's first ride is
+  done (as pilot or hitcher). Both are once per friend (ledger refs `invite:<id>`, `invite-ride:<id>`), and the bot DMs
+  the inviter each time.
+
+## The village board (release 7)
+`/board`, public: totals (rides shared, riders, people who asked, asking right now, seats going, floating now), the next
+ride milestone (1, 10, 25, 50, 100, 150, 200, 300, 500) with a progress bar, "asking right now" with I'll take them,
+seats going with Hop on, every ride that happened (newest first), and all-time leaders (pilots, hitchers, inviters,
+floaters). First names and avatars only, like the group announcements. Each milestone is announced once in the group
+with the prizes GIF. The same pulse shows on the landing page (with a live ticker of real asks and rides, samples only
+until there's activity), /home, /today and the explainer.

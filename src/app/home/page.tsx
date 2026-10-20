@@ -10,6 +10,11 @@ import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { allPlaces, destName, nearestPlace, placeName } from "@/lib/places";
 import { loadPlaces } from "@/services/places";
+import { InviteCard } from "@/components/invite-card";
+import { Pulse } from "@/components/pulse";
+import { inviteLink, myInvites, shareUrl } from "@/services/invites";
+import { pulse } from "@/services/stats";
+import { KAJU } from "@/lib/kaju";
 import { istHHMM } from "@/lib/time";
 import { maxSeats, vehicleEmoji } from "@/lib/kaju";
 import { activeFloats } from "@/services/floats";
@@ -32,6 +37,7 @@ export default async function Home() {
   const [kaju, hist, mine, board, live, floats] = await Promise.all([
     balance(d, user.id), history(d, user.id, 8), myPlans(d, user.id, now), openPlans(d, now), myRides(d, user.id), activeFloats(d, now),
   ]);
+  const [link, invited, village] = await Promise.all([inviteLink(d, user), myInvites(d, user), pulse(d, now)]);
   const toConfirm = await d.select().from(rides).where(and(eq(rides.status, "matched"), lt(rides.departAt, new Date(now.getTime() - 20 * 60_000)), or(eq(rides.pilotId, user.id), eq(rides.hitcherId, user.id))));
   const otherIds = [...live, ...toConfirm].map((r) => (r.pilotId === user.id ? r.hitcherId : r.pilotId));
   const others = otherIds.length ? await d.select().from(users).where(inArray(users.id, otherIds)) : [];
@@ -47,6 +53,7 @@ export default async function Home() {
       <AvatarSync hasAvatar={Boolean(user.avatar)} />
       <main className="app">
         <h1>Hey {user.name} 👋</h1>
+        <Pulse p={village} compact />
 
         {!user.avatar && (
           <section className="card onboard-card">
@@ -127,6 +134,8 @@ export default async function Home() {
             <p className="hint">Floating now: {floats.filter((f) => f.u.id !== user.id).map((f) => `${f.u.name} (near ${nearestPlace(f.f).place.name})`).join(", ")}</p>
           )}
         </section>
+
+        <InviteCard link={link} share={shareUrl(link)} joined={invited.joined} waiting={invited.waiting} join={KAJU.inviteJoin} ride={KAJU.inviteRide} />
 
         <section className="card">
           <h2>🥜 {kaju} kaju</h2>

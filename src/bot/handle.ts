@@ -14,6 +14,8 @@ import { finishOnboarding, getUser, updateUser, upsertTelegramUser, type TgUser 
 import { findOrAddPlace, loadPlaces, pinPlace } from "@/services/places";
 import { fileReport, type ReportKind } from "@/services/reports";
 import { isAdmin, isStaff } from "@/services/roles";
+import { claimInvite, inviteByUsername, inviteLink, myInvites, noteInviter, shareUrl } from "@/services/invites";
+import { KAJU } from "@/lib/kaju";
 import { esc, gifUrl, send, type Button, type Call, type Gif, type Notifier } from "./telegram";
 
 type Msg = { chat: { id: number; type: string }; from?: TgUser; text?: string; edit_date?: number; location?: { latitude: number; longitude: number; live_period?: number } };
@@ -37,6 +39,7 @@ const MENU: Button[][] = [
   [{ text: "🛵 I'm going somewhere", data: "menu:offer" }, { text: "🙋 I need a ride", data: "menu:request" }],
   [{ text: "🌴 Float", data: "menu:float" }, { text: "📋 My rides", data: "menu:mine" }],
   [{ text: "🥜 Kaju", data: "menu:kaju" }, { text: "🌐 Open Pillion", data: "menu:web" }],
+  [{ text: "💌 Invite friends", data: "menu:invite" }, { text: "🏘️ Village board", data: "menu:board" }],
   [{ text: "🐞 Report a bug", data: "menu:bug" }, { text: "💡 Suggest an idea", data: "menu:feature" }],
 ];
 
@@ -191,12 +194,16 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
 
   if (text.startsWith("/start")) {
     const arg = text.split(/\s+/)[1] ?? "";
+    if (arg.startsWith("inv_")) {
+      const inviter = await noteInviter(ctx.db, user, arg.slice(4));
+      if (inviter && !user.onboardedAt) await say(ctx, chatId, `💌 <b>${esc(inviter.name)}</b> invited you. Welcome to the village!`);
+    }
     if (arg.startsWith("login_")) {
       const ok = await claimLogin(ctx.db, arg.slice(6), user.id, ctx.now);
       await say(ctx, chatId, ok ? "✅ You're logged in. Head back to your browser." : "That login link expired. Tap Log in on the site again.");
     }
     if (!user.onboardedAt) return welcome(ctx, chatId, user);
-    if (!arg) return menu(ctx, chatId, user, `Welcome back, ${esc(user.name)}!`);
+    if (!arg.startsWith("login_")) return menu(ctx, chatId, user, `Welcome back, ${esc(user.name)}!`);
     return;
   }
   if (!user.onboardedAt) return welcome(ctx, chatId, user);
@@ -254,6 +261,8 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
       const path = isAdmin(user) ? "/admin" : "/staff";
       return say(ctx, chatId, `Your ${isAdmin(user) ? "admin" : "staff"} dashboard (link works once, for 30 minutes):`, [[{ text: "📊 Open dashboard", url: await webLink(ctx, user, path) }]]);
     }
+    case "/invite": return invite(ctx, chatId, user, rest.join(" "));
+    case "/board": return say(ctx, chatId, "🏘️ The village board: every ride that happened, who's asking right now, and the leaders.", [[{ text: "Open the board", url: `${env.origin()}/board` }]]);
     case "/help": return say(ctx, chatId, HELP.replace("PILLION_ORIGIN", env.origin()), MENU);
     case "/name": {
       const name = rest.join(" ").trim().slice(0, 32);
@@ -285,9 +294,33 @@ const HELP = [
   "/mine: my plans and rides · /kaju: my kaju",
   "/wheels: change vehicle · /name: change name · /web: open the site",
   "/bug what broke · /feature what you wish it did",
+  "/invite: bring a friend (kaju!) · /board: the village board",
   "",
   "The whole explainer: PILLION_ORIGIN/how-it-works",
 ].join("\n");
+
+async function invite(ctx: Ctx, chatId: number, user: User, arg: string) {
+  if (arg.trim()) {
+    try {
+      const r = await inviteByUsername(ctx.db, user, arg);
+      return say(ctx, chatId, `💌 Invite for <b>@${esc(r.username)}</b> saved. Send them your link:\n${r.link}\n\nWhen they sign up with that Telegram account (link or not), you get +${KAJU.inviteJoin} kaju, and +${KAJU.inviteRide} more after their first ride.`, [[{ text: "📤 Share my link", url: shareUrl(r.link) }]]);
+    } catch (e) {
+      if (e instanceof GameError) return say(ctx, chatId, e.message);
+      throw e;
+    }
+  }
+  const link = await inviteLink(ctx.db, user);
+  const mine = await myInvites(ctx.db, user);
+  const status = mine.joined.length
+    ? `\n\n<b>Joined through you:</b> ${mine.joined.map((j) => `${esc(j.name)}${j.rode ? " 🛵" : ""}`).join(", ")}`
+    : "";
+  const waiting = mine.waiting.length ? `\n<i>Invited, not joined yet: ${mine.waiting.map((u) => `@${esc(u)}`).join(", ")}</i>` : "";
+  return say(
+    ctx, chatId,
+    `💌 <b>Bring a friend.</b> More people means more rides for everyone.\n\nYour link: ${link}\n\n+${KAJU.inviteJoin} kaju when they sign up, +${KAJU.inviteRide} when they take their first ride. Or send <code>/invite @their_username</code>: it counts even if they join without the link.${status}${waiting}`,
+    [[{ text: "📤 Share my link", url: shareUrl(link) }]],
+  );
+}
 
 async function report(ctx: Ctx, chatId: number, user: User, kind: ReportKind, text: string) {
   if (isReporting(user.botState)) await updateUser(ctx.db, user.id, { botState: null });
@@ -339,6 +372,8 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       else if (b === "float") await say(ctx, chatId, FLOAT_HELP);
       else if (b === "mine") await mine(ctx, chatId, user);
       else if (b === "kaju") await kajuInfo(ctx, chatId, user);
+      else if (b === "invite") await invite(ctx, chatId, user, "");
+      else if (b === "board") await say(ctx, chatId, "🏘️ The village board:", [[{ text: "Open the board", url: `${env.origin()}/board` }]]);
       else if (b === "later") await menu(ctx, chatId, user, `All set! How it works, in full: ${env.origin()}/how-it-works`);
       else if (b === "web") await say(ctx, chatId, "Here you go (works once, for 30 minutes):", [[{ text: "🌐 Open Pillion", url: await webLink(ctx, user) }]]);
       else if (b === "bug" || b === "feature") {
@@ -407,6 +442,7 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
 
 async function onboarded(ctx: Ctx, chatId: number, user: User) {
   const got = await finishOnboarding(ctx.db, user.id, ctx.now);
+  await claimInvite(ctx.db, ctx.n, user, ctx.now);
   const link = await webLink(ctx, user, "/avatar?welcome=1");
   if (!user.username) {
     await say(ctx, chatId, "Tip: set a Telegram <b>username</b> (Settings → Username) so the people you ride with can message you to sort the pickup.");

@@ -14,7 +14,7 @@ export async function testDb() {
     db = makeDb(TEST_URL);
     await migrate(db, { migrationsFolder: "drizzle" });
   }
-  await db.execute(sql`truncate users, login_codes, plans, rides, floats, kaju, hearts, sent_keys, places, reports restart identity cascade`);
+  await db.execute(sql`truncate users, login_codes, plans, rides, floats, kaju, hearts, sent_keys, places, reports, invites restart identity cascade`);
   resetPlaces();
   return db;
 }

@@ -6,6 +6,8 @@ import { LINES, pick } from "@/bot/lines";
 import { isLateCancel, KAJU, vehicleEmoji } from "@/lib/kaju";
 import { MATCH_WINDOW_MIN, offerFitsRequest } from "@/lib/match";
 import { placeName } from "@/lib/places";
+import { inviteFirstRide } from "./invites";
+import { celebrateMilestone } from "./stats";
 import { istDayStart, istHHMM } from "@/lib/time";
 import { award } from "./kaju";
 import { GameError } from "./errors";
@@ -186,12 +188,14 @@ export async function confirmRide(db: Db, n: Notifier, user: User, rideId: numbe
     const [p, h] = await loadUsers(tx, r.pilotId, r.hitcherId);
     return { already: null, done: true as const, p, h, pk, hk, capped };
   });
+  if (res.done) await inviteFirstRide(db, n, [res.p, res.h], now);
   if (res.done && !res.capped) {
     // the kaju moment, for both of them
     await n.dm({ to: res.p.telegramId, text: `🥜 Ride done with ${esc(res.h.name)}! +${res.pk} kaju for bringing the wheels.`, animation: gifUrl("kaju") });
     await n.dm({ to: res.h.telegramId, text: `🥜 Ride done with ${esc(res.p.name)}! +${res.hk} kaju for the company.`, animation: gifUrl("kaju") });
     await n.announce(pick(LINES.rideDone, { pilot: esc(res.p.name), hitcher: esc(res.h.name), pilotKaju: res.pk, hitcherKaju: res.hk }));
   }
+  if (res.done) await celebrateMilestone(db, n, res.p.name, res.h.name);
   return res;
 }
 

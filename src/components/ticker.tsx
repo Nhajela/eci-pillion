@@ -14,16 +14,19 @@ const LINES = [
   "☀️ Sunday, susegad mode. Three scooties heading out around 11. Seats: 2. Early claims earn more.",
 ];
 
-export function Ticker() {
+/** Real village happenings when there are some (`live`), the made-up samples until then. */
+export function Ticker({ live = [] }: { live?: string[] }) {
+  const real = live.length >= 2;
+  const lines = real ? live : LINES;
   const [i, setI] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setI((n) => (n + 1) % LINES.length), 4500);
+    const id = setInterval(() => setI((n) => (n + 1) % lines.length), 4500);
     return () => clearInterval(id);
-  }, []);
+  }, [lines.length]);
   return (
-    <div className="ticker" aria-label="Sample messages from the Pillion bot">
-      <span className="ticker-label">sample bot chatter</span>
-      <p key={i} className="ticker-line">{LINES[i]}</p>
+    <div className="ticker" aria-label={real ? "Live from the village" : "Sample messages from the Pillion bot"}>
+      <span className="ticker-label">{real ? "live from the village" : "sample bot chatter"}</span>
+      <p key={i} className="ticker-line">{lines[i % lines.length]}</p>
     </div>
   );
 }

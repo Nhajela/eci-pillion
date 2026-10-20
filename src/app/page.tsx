@@ -3,6 +3,26 @@ import { Ticker } from "@/components/ticker";
 import { VillageMap } from "@/components/village-map";
 import { currentUser } from "@/lib/auth";
 import { botEnabled, env } from "@/lib/env";
+import { db, hasDb } from "@/db";
+import { Milestone, Pulse, ago } from "@/components/pulse";
+import { destName, placeName } from "@/lib/places";
+import { istHHMM } from "@/lib/time";
+import { loadPlaces } from "@/services/places";
+import { openBoard, pulse, recentRides } from "@/services/stats";
+
+/** What's actually happening, for the ticker: recent rides, open asks, floaters. */
+async function liveLines(now: Date) {
+  const d = db();
+  await loadPlaces(d);
+  const [feed, open, p] = await Promise.all([recentRides(d, 8), openBoard(d, now), pulse(d, now)]);
+  const lines = [
+    ...open.filter((o) => o.plan.kind === "request").slice(0, 3).map((o) => `🙋 ${o.name} is asking for a ride: ${placeName(o.plan.fromPlace)} → ${destName(o.plan.toPlace, o.plan.note)}, around ${istHHMM(o.plan.departAt)}. Anyone?`),
+    ...open.filter((o) => o.plan.kind === "offer").slice(0, 2).map((o) => `${o.vehicle === "car" ? "🚗" : "🛵"} ${o.name} has ${o.plan.seats} seat${o.plan.seats > 1 ? "s" : ""} to ${placeName(o.plan.toPlace)} around ${istHHMM(o.plan.departAt)}.`),
+    ...feed.map((r) => `🎉 ${r.pilot.name} took ${r.hitcher.name} to ${r.to === "errand" ? "an errand and back" : placeName(r.to)} · ${ago(r.at, now)}`),
+    ...(p.floatingNow ? [`🌴 ${p.floatingNow} floating right now, waiting to be asked.`] : []),
+  ];
+  return { lines, p };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +91,8 @@ const FAQ = [
 export default async function Home() {
   const user = await currentUser();
   const live = botEnabled();
+  const now = new Date();
+  const village = hasDb() ? await liveLines(now).catch(() => null) : null;
   return (
     <main>
       <header className="hero">
@@ -96,7 +118,14 @@ export default async function Home() {
         </div>
       </header>
 
-      <Ticker />
+      <Ticker live={village?.lines} />
+
+      {village && village.p.people > 0 && (
+        <section className="pulse-section" aria-label="The village in numbers">
+          <Pulse p={village.p} />
+          <Milestone rides={village.p.rides} next={village.p.next} />
+        </section>
+      )}
 
       <section className="beta-section" aria-labelledby="beta-h">
         <div className="beta-card">

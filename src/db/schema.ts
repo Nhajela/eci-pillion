@@ -12,6 +12,8 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   vehicle: text("vehicle").notNull().default("none"), // scooty | bike | car | none
   role: text("role").notNull().default("member"), // member | staff (sees the dashboard) | admin (changes things)
+  inviteCode: text("invite_code").unique(), // personal link t.me/<bot>?start=inv_<code>, made on first use
+  invitedBy: integer("invited_by"), // who brought them (their link, or an @username invite); set once, before sign-up
   seats: integer("seats").notNull().default(0),
   avatar: text("avatar"), // data:image/png;base64,… (128 px)
   scooty: text("scooty").notNull().default("#7fd1b9"),
@@ -125,6 +127,16 @@ export const floatPings = pgTable(
   },
   (t) => [uniqueIndex("float_pings_once").on(t.floatId, t.requestId), index("float_pings_pending").on(t.outcome, t.pingedAt)],
 );
+
+/** Invites by Telegram @username, like the assassins game: one per username, ever; the first inviter gets the credit
+ *  when that account signs up, even without the link. */
+export const invites = pgTable("invites", {
+  username: text("username").primaryKey(), // lowercase, no @
+  inviterId: integer("inviter_id").notNull().references(() => users.id),
+  claimedBy: integer("claimed_by").references(() => users.id),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  claimedAt: ts("claimed_at"),
+});
 
 /** Places people go. Seeded from src/lib/places.ts; anyone can add one by naming it (and dropping a pin),
  *  admins rename, hide or pin it as a hub. A place without coordinates matches by name only. */

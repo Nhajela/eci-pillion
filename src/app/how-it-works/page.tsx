@@ -38,6 +38,8 @@ const KAJU_ROWS: [string, string, string][] = [
   ["A ride happens, you were the hitcher", `+${KAJU.rideHitcher}`, "You brought the company."],
   ["Float", `+${KAJU.floatPer15} / 15 min`, `7am to 11pm only, up to ${KAJU.floatMaxPerDay} a day.`],
   ["Win a 9pm prize", `+${PRIZE_KAJU}`, "Plus the prize itself."],
+  ["A friend you invited signs up", `+${KAJU.inviteJoin}`, "Your link, or /invite @their_username."],
+  ["…and takes their first ride", `+${KAJU.inviteRide}`, "The part that matters: a new rider in the village."],
   ["Cancel inside 30 min of the time", `${KAJU.lateCancel}`, "Someone was waiting by the gate."],
   ["Floater says no (or doesn't answer)", `${KAJU.floaterRefusal}`, "And the last hour of floating isn't paid. The float ends."],
   ["Cancel a plan nobody rode on", "back", "Its plan kaju goes back, so post-and-cancel earns nothing."],
@@ -54,6 +56,8 @@ const COMMANDS: [string, string][] = [
   ["/web", "🌐 A one-time link to log in on the site"],
   ["/wheels", "🛵 / 🏍️ / 🚗 Change your vehicle (cars: seats)"],
   ["/name", "Change what the village calls you"],
+  ["/invite", "💌 Your invite link (or /invite @friend)"],
+  ["/board", "🏘️ The village board"],
   ["/bug …", "🐞 Something broke (also /error)"],
   ["/feature …", "💡 Something you wish it did (also /idea)"],
   ["/help", "This list"],
@@ -79,7 +83,7 @@ export default async function HowItWorks() {
           and it&apos;s a game: everything earns <b>kaju</b>, and every evening there are prizes.
         </p>
         <nav className="toc" aria-label="On this page">
-          {[["#story", "A day, tap by tap"], ["#start", "Get started"], ["#pilot", "Pilot"], ["#hitcher", "Hitcher"], ["#floater", "Floater"], ["#places", "Places"], ["#kaju", "Kaju"], ["#prizes", "Prizes"], ["#fair", "Fair play"], ["#commands", "Commands"], ["#beta", "Beta"], ["#team", "For the team"]].map(([href, label]) => (
+          {[["#story", "A day, tap by tap"], ["#start", "Get started"], ["#pilot", "Pilot"], ["#hitcher", "Hitcher"], ["#floater", "Floater"], ["#places", "Places"], ["#invites", "Invites"], ["#board", "Board"], ["#kaju", "Kaju"], ["#prizes", "Prizes"], ["#fair", "Fair play"], ["#commands", "Commands"], ["#beta", "Beta"], ["#team", "For the team"]].map(([href, label]) => (
             <a key={href} href={href} className="chip">{label}</a>
           ))}
         </nav>
@@ -153,6 +157,26 @@ export default async function HowItWorks() {
           <li><b>Close counts.</b> Two pinned places within {SAME_PLACE_M} m count as the same destination, so a ride to the stay next to Riva matches someone going to Riva.</li>
           <li><b>Pins help floaters.</b> A place with no pin still works for matching by name, but floaters can&apos;t be pinged to pick you up there. Drop a pin when you add it.</li>
         </ul>
+      </section>
+
+      <section id="invites" aria-labelledby="invites-h">
+        <h2 id="invites-h">Invites: bring a friend</h2>
+        <p className="lede">Every person who joins makes a match likelier for everyone, so bringing people in pays.</p>
+        <ol className="steps">
+          <li><b>Share your link.</b> /invite in the bot (or the 💌 card on the site) gives you a personal link that opens the bot. Anyone who signs up through it is yours: +{KAJU.inviteJoin} kaju.</li>
+          <li><b>Or name them.</b> <code>/invite @their_username</code> saves the invite. When that Telegram account signs up, link or not, it counts. One invite per person, ever: the first one to invite them gets it.</li>
+          <li><b>Their first ride pays more.</b> When your friend completes their first ride (as pilot or hitcher), you get +{KAJU.inviteRide}. The bot tells you both times.</li>
+        </ol>
+      </section>
+
+      <section id="board" aria-labelledby="board-h">
+        <h2 id="board-h">The village board</h2>
+        <p>
+          <a href="/board">The board</a> is public: how many rides the village has shared, how many people have ridden and asked,
+          who&apos;s asking right now (with an “I&apos;ll take them” button), seats going, every ride that happened, and the people
+          making it happen: most generous pilots, most rides hitched, most friends brought, most devoted floaters. Every
+          milestone (the 1st ride, the 10th, 25th, 50th, 100th…) gets celebrated in the group.
+        </p>
       </section>
 
       <section id="kaju" className="kaju" aria-labelledby="kaju-h">
