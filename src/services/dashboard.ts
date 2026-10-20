@@ -12,7 +12,7 @@ export async function dashboard(db: Db, now: Date) {
   const dayStart = istDayStart(now);
   const day = istDay(now);
   const [
-    [people], [joinedToday], [plansToday], [ridesDoneToday], [kajuToday], board, upcoming, floating, everyone, reports, usage, placeRows,
+    [people], [joinedToday], [plansToday], [ridesDoneToday], [kajuToday], board, upcoming, floating, everyoneRows, reports, usage, placeRows, totals,
   ] = await Promise.all([
     db.select({ c: sql<number>`count(*)::int` }).from(users).where(sql`${users.onboardedAt} is not null`),
     db.select({ c: sql<number>`count(*)::int` }).from(users).where(gte(users.onboardedAt, dayStart)),
@@ -23,12 +23,14 @@ export async function dashboard(db: Db, now: Date) {
       .where(and(eq(plans.status, "open"), gt(plans.departAt, new Date(now.getTime() - 60 * 60_000)))).orderBy(plans.departAt),
     db.select().from(rides).where(eq(rides.status, "matched")).orderBy(rides.departAt),
     db.select({ f: floats, u: users }).from(floats).innerJoin(users, eq(floats.userId, users.id)).where(and(isNull(floats.endedAt), gt(floats.liveUntil, now))),
-    db.select({ u: users, k: sql<number>`coalesce((select sum(amount) from kaju where kaju.user_id = ${users.id}), 0)::int` })
-      .from(users).orderBy(desc(users.createdAt)),
+    db.select().from(users).orderBy(desc(users.createdAt)),
     listReports(db),
     db.select({ id: plans.toPlace, c: sql<number>`count(*)::int` }).from(plans).groupBy(plans.toPlace),
     db.select({ id: places.id, addedBy: places.addedBy, createdAt: places.createdAt }).from(places),
+    db.select({ userId: kaju.userId, k: sql<number>`coalesce(sum(${kaju.amount}), 0)::int` }).from(kaju).groupBy(kaju.userId),
   ]);
+  const kajuOf = new Map(totals.map((t) => [t.userId, t.k]));
+  const everyone = everyoneRows.map((u) => ({ u, k: kajuOf.get(u.id) ?? 0 }));
   const ids = [...new Set(upcoming.flatMap((r) => [r.pilotId, r.hitcherId]))];
   const rideUsers = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
   const nameOf = (id: number | null) => (id == null ? "" : everyone.find((e) => e.u.id === id)?.u.name ?? rideUsers.find((u) => u.id === id)?.name ?? "?");
