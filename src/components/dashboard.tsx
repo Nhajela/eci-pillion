@@ -92,11 +92,11 @@ export async function Dashboard({ me, canEdit }: { me: User; canEdit: boolean })
         {d.places.map((p) => (
           <div key={p.id} className="line">
             <span>
-              {p.hidden ? "🙈 " : ""}<b>{p.name}</b> · {p.kind} · {p.lat != null ? "📍 pinned" : "no pin (name-only)"} · used {p.uses}×{p.addedBy ? ` · added by ${p.addedBy}` : ""}{p.note ? ` · ${p.note}` : ""}
-              {canEdit && (
+              {p.mergedInto ? "🔀 " : p.hidden ? "🙈 " : ""}<b>{p.name}</b>{p.mergedInto ? ` → merged into ${placeName(p.mergedInto)}` : ""} · {p.kind} · {p.lat != null ? "📍 pinned" : "no pin (name-only)"} · used {p.uses}×{p.addedBy ? ` · added by ${p.addedBy}` : ""}{p.note ? ` · ${p.note}` : ""}
+              {canEdit && !p.mergedInto && (
                 <details className="edit-place">
                   <summary>Edit</summary>
-                  <PlaceEditor p={{ id: p.id, name: p.name, kind: p.kind, hidden: Boolean(p.hidden), note: p.note ?? null, lat: p.lat, lng: p.lng }} />
+                  <PlaceEditor p={{ id: p.id, name: p.name, kind: p.kind, hidden: Boolean(p.hidden), note: p.note ?? null, lat: p.lat, lng: p.lng }} others={d.places.filter((o) => o.id !== p.id && !o.mergedInto).map((o) => ({ id: o.id, name: o.name }))} />
                 </details>
               )}
             </span>

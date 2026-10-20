@@ -42,7 +42,11 @@ export function RoleSelect({ id, role, self }: { id: number; role: string; self:
 
 const KINDS = [["hub", "⭐ hub"], ["event", "🍲 event"], ["spot", "spot"], ["stay", "🏡 stay"]] as const;
 
-export function PlaceEditor({ p }: { p: { id: string; name: string; kind: string; hidden: boolean; note: string | null; lat: number | null; lng: number | null } }) {
+export function PlaceEditor({ p, others }: {
+  p: { id: string; name: string; kind: string; hidden: boolean; note: string | null; lat: number | null; lng: number | null };
+  others: { id: string; name: string }[];
+}) {
+  const [into, setInto] = useState("");
   const { busy, msg, run } = useAct();
   const [name, setName] = useState(p.name);
   const [kind, setKind] = useState(p.kind);
@@ -56,6 +60,18 @@ export function PlaceEditor({ p }: { p: { id: string; name: string; kind: string
       <input className="grow" value={note} onChange={(e) => setNote(e.target.value)} placeholder="note (e.g. tonight at Riva lawn)" aria-label="Note" maxLength={120} />
       <button className="btn small" disabled={busy}>Save</button>
       <button type="button" className="btn small ghost" disabled={busy} onClick={() => run({ action: "savePlace", id: p.id, hidden: !p.hidden }, p.hidden ? "Shown again." : "Hidden from pickers.")}>{p.hidden ? "Unhide" : "Hide"}</button>
+      <span className="mini-form merge">
+        <select value={into} onChange={(e) => setInto(e.target.value)} aria-label="Merge into">
+          <option value="">Same as… (merge into)</option>
+          {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+        <button type="button" className="btn small ghost" disabled={busy || !into} onClick={() => {
+          const target = others.find((o) => o.id === into)?.name;
+          if (window.confirm(`Merge “${p.name}” into “${target}”? Every plan and ride moves there, and “${p.name}” leads to “${target}” from now on.`)) {
+            run({ action: "mergePlace", from: p.id, into }, `Merged into ${target}.`);
+          }
+        }}>Merge</button>
+      </span>
       {msg && <span className="act-msg" role="status">{msg}</span>}
     </form>
   );

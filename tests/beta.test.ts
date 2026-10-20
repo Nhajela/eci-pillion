@@ -182,3 +182,30 @@ describe("GIF moments", () => {
     expect(calls).toEqual(["sendAnimation", "sendMessage"]);
   });
 });
+
+describe("merging places", () => {
+  it("moves plans and rides, keeps the old name leading to the new place, follows chains, admins only", async () => {
+    process.env.BOOTSTRAP_ADMINS = "naman";
+    const db = await testDb();
+    const n = notifier();
+    const naman = await person(db, "Naman");
+    const asha = await person(db, "Asha", "scooty");
+    const { mergePlace } = await import("@/services/places");
+    const { allPlaces } = await import("@/lib/places");
+    const a = (await findOrAddPlace(db, asha, "Banyan Tree", null)).place;
+    const b = (await findOrAddPlace(db, asha, "Banyan stay", { lat: 15.666, lng: 73.712 })).place;
+    const c = (await findOrAddPlace(db, asha, "Banyan homestay", null)).place;
+    const p = await createPlan(db, n, asha, { kind: "offer", fromPlace: "riva", toPlace: a.id, departAt: at(60) }, T0);
+    await expect(mergePlace(db, asha, a.id, b.id)).rejects.toThrow(GameError);
+    expect((await mergePlace(db, naman, a.id, b.id)).moved).toBe(1);
+    const { plans } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    expect((await db.select().from(plans).where(eq(plans.id, p.plan.id)))[0].toPlace).toBe(b.id);
+    expect(allPlaces().some((x) => x.id === a.id)).toBe(false);
+    expect((await findOrAddPlace(db, asha, "banyan tree", null)).place.id).toBe(b.id); // old name → new place
+    await expect(mergePlace(db, naman, c.id, a.id)).rejects.toThrow(/merged away/);
+    await mergePlace(db, naman, b.id, c.id); // b (and a, through b) now lead to c
+    expect((await findOrAddPlace(db, asha, "Banyan Tree", null)).place.id).toBe(c.id);
+    expect(placeById(c.id)?.lat).toBe(15.666); // c had no pin: it takes b's
+  });
+});

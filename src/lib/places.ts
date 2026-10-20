@@ -10,6 +10,7 @@ export type Place = {
   kind: PlaceKind;
   hidden?: boolean;
   note?: string | null;
+  mergedInto?: string | null;
   map?: { x: number; y: number }; // spot on the toy village map
 };
 export type Located = Place & { lat: number; lng: number };

@@ -398,3 +398,4 @@ main.app > section { margin: 0; max-width: none; }
   .topbar .me { gap: 4px; margin-left: 4px; }
   .topbar .kaju-pill { padding: 2px 7px; }
 }
+.mini-form.merge { flex: 1 1 100%; }

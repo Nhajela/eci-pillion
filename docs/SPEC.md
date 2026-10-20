@@ -64,6 +64,9 @@ Each scheduled message has a unique key in `sent_keys`, so restarts never double
   pickups there (the bot says so).
 - Admins (dashboard → Places) add, rename, re-pin (paste "lat, lng" or a Google Maps link), change kind
   (hub / event / spot / stay), add a note, or hide a place from pickers. Old plans keep their names.
+- **Merge** (admin, "Same as… → Merge"): every plan and ride on the duplicate moves to the other place, the duplicate
+  leaves the pickers, and its name keeps finding the place it went into (`places.merged_into`; chains are flattened).
+  The kept place takes the duplicate's pin if it had none.
 
 ## Errands
 A request can go to "a quick errand and back" (`to_place = 'errand'`, note = what for). It is a ride from `from` and

@@ -148,6 +148,7 @@ export const places = pgTable("places", {
   kind: text("kind").notNull().default("spot"), // hub | spot | stay | event
   hidden: boolean("hidden").notNull().default(false),
   note: text("note"),
+  mergedInto: text("merged_into"), // an admin merged this duplicate into another place; its name still finds that one
   addedBy: integer("added_by").references(() => users.id),
   createdAt: ts("created_at").notNull().defaultNow(),
 });

@@ -11,7 +11,7 @@ import { cancelPlan, createPlan, GameError } from "@/services/plans";
 import { cancelRide, confirmRide, hopOn, takeRequest } from "@/services/rides";
 import { stopFloat } from "@/services/floats";
 import { getUser, updateUser, validAvatar, validColour } from "@/services/users";
-import { findOrAddPlace, loadPlaces, parsePin, savePlace } from "@/services/places";
+import { findOrAddPlace, loadPlaces, mergePlace, parsePin, savePlace } from "@/services/places";
 import { fileReport, setReportStatus } from "@/services/reports";
 import { requireAdmin, setRole } from "@/services/roles";
 import { inviteByUsername } from "@/services/invites";
@@ -32,6 +32,7 @@ const Body = z.discriminatedUnion("action", [
     action: z.literal("savePlace"), id: z.string().max(60), name: z.string().max(60).optional(), kind: z.enum(["hub", "spot", "stay", "event"]).optional(),
     hidden: z.boolean().optional(), note: z.string().max(120).nullable().optional(), pin: z.string().max(300).optional(),
   }),
+  z.object({ action: z.literal("mergePlace"), from: z.string().max(60), into: z.string().max(60) }),
   z.object({ action: z.literal("addPlace"), name: z.string().min(2).max(60), kind: z.enum(["hub", "spot", "stay", "event"]), pin: z.string().max(300).optional() }),
   z.object({ action: z.literal("cancelPlan"), id: z.number().int() }),
   z.object({ action: z.literal("take"), id: z.number().int() }),
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
         await savePlace(db(), user, b.id, { name: b.name, kind: b.kind, hidden: b.hidden, note: b.note, ...(pin !== undefined ? { lat: pin?.lat ?? null, lng: pin?.lng ?? null } : {}) });
         break;
       }
+      case "mergePlace": return NextResponse.json({ ok: true, ...(await mergePlace(db(), user, b.from, b.into)) });
       case "addPlace": {
         requireAdmin(user);
         const pin = b.pin?.trim() ? parsePin(b.pin) : null;

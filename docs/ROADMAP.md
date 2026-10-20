@@ -11,8 +11,7 @@
 | 4 | Daily prizes + leaderboard | built; /today is live, 9pm post needs ANNOUNCE_CHAT_ID | Many small winners every evening |
 
 ## Open questions for later releases
-- Events as destinations, automatically: pull today's EdgeOS events (venue + time) so "the 7pm talk at Riva" is a pickable place without an admin adding it.
-- Merge two places that turned out to be the same (today: hide one, rename the other).
+- Events as destinations, automatically: pull today's EdgeOS events (venue + time) so "the 7pm talk at Riva" is a pickable place without an admin adding it. Needs an EdgeOS API key for Pillion to read the calendar with (Naman's call).
 - Bot persona: whimsical, rhyming announcements (samples in `docs/copy.md` §8). Plain commands first, LLM chat optional.
 - Kaju numbers in `docs/copy.md` §3 are a first guess; tune after a few days of data.
 - Prizes: tangible, many, small. To be decided with the ops team.

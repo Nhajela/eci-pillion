@@ -36,6 +36,13 @@
       "when": 1792481407487,
       "tag": "0004_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792482141547,
+      "tag": "0005_place_merge",
+      "breakpoints": true
     }
   ]
 }

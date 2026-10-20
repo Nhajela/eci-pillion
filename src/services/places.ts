@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
-import { places, type User } from "@/db/schema";
+import { places, plans, rides, type User } from "@/db/schema";
 import {
   allPlaces, distanceM, everyPlace, located, looseName, nearestPlace, setPlaces, slugify, SEED_PLACES,
   type Place, type PlaceKind,
@@ -19,7 +19,7 @@ let loadedAt = 0;
 export async function loadPlaces(db: Db, force = false) {
   if (!force && Date.now() - loadedAt < TTL_MS) return allPlaces();
   const rows = await db.select().from(places);
-  setPlaces(rows.map((r) => ({ id: r.id, name: r.name, lat: r.lat, lng: r.lng, kind: r.kind as PlaceKind, hidden: r.hidden, note: r.note })));
+  setPlaces(rows.map((r) => ({ id: r.id, name: r.name, lat: r.lat, lng: r.lng, kind: r.kind as PlaceKind, hidden: r.hidden || r.mergedInto != null, note: r.note, mergedInto: r.mergedInto })));
   loadedAt = Date.now();
   return allPlaces();
 }
@@ -35,6 +35,9 @@ export function findPlace(name: string, pin?: { lat: number; lng: number } | nul
   const n = looseName(name);
   const byName = n ? everyPlace().find((p) => !p.hidden && looseName(p.name) === n) : undefined;
   if (byName) return byName;
+  // a name that was merged away still finds the place it was merged into
+  const merged = n ? everyPlace().find((p) => p.mergedInto && looseName(p.name) === n) : undefined;
+  if (merged) return everyPlace().find((p) => p.id === merged.mergedInto);
   if (pin) {
     const near = nearestPlace(pin);
     if (near.place && near.metres <= DEDUPE_M) return near.place;
@@ -97,6 +100,32 @@ async function upsertRow(db: Db, id: string, patch: Partial<typeof places.$infer
 
 /** Names go into Telegram HTML everywhere, so they never carry markup. */
 export const cleanName = (s: string, max = 40) => s.replace(/[<>&]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
+
+/**
+ * Admin: two places turned out to be the same ("Banyan stay" and "Banyan Tree"). Every plan and ride moves to `intoId`,
+ * `fromId` disappears from pickers, and its name keeps leading to `intoId`.
+ */
+export async function mergePlace(db: Db, admin: User, fromId: string, intoId: string) {
+  requireAdmin(admin);
+  await loadPlaces(db, true);
+  const from = everyPlace().find((p) => p.id === fromId);
+  const into = everyPlace().find((p) => p.id === intoId);
+  if (!from || !into || fromId === intoId) throw new GameError("Pick two different places.");
+  if (into.mergedInto) throw new GameError(`${into.name} was itself merged away. Pick the place it went into.`);
+  const moved = await db.transaction(async (tx) => {
+    const a = await tx.update(plans).set({ fromPlace: intoId }).where(eq(plans.fromPlace, fromId)).returning({ id: plans.id });
+    const b = await tx.update(plans).set({ toPlace: intoId }).where(eq(plans.toPlace, fromId)).returning({ id: plans.id });
+    const c = await tx.update(rides).set({ fromPlace: intoId }).where(eq(rides.fromPlace, fromId)).returning({ id: rides.id });
+    const d = await tx.update(rides).set({ toPlace: intoId }).where(eq(rides.toPlace, fromId)).returning({ id: rides.id });
+    // anything merged into `from` before now points straight at `into`
+    await tx.update(places).set({ mergedInto: intoId }).where(eq(places.mergedInto, fromId));
+    return a.length + b.length + c.length + d.length;
+  });
+  await upsertRow(db, fromId, { mergedInto: intoId, hidden: true });
+  if (!located(into) && located(from)) await upsertRow(db, intoId, { lat: from.lat, lng: from.lng });
+  await loadPlaces(db, true);
+  return { moved };
+}
 
 /** Parse "15.67, 73.71" or a Google Maps link with @lat,lng or ?q=lat,lng. */
 export function parsePin(s: string): { lat: number; lng: number } | null {
