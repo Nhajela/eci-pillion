@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "@/db";
 import { floats, kaju, plans, rides, users } from "@/db/schema";
@@ -91,6 +91,40 @@ export async function openBoard(db: Db, now: Date) {
     .where(and(eq(plans.status, "open"), gt(plans.departAt, new Date(now.getTime() - 15 * 60_000))))
     .orderBy(plans.departAt)
     .limit(30);
+}
+
+/** The flight board: everything leaving in the next hours (matched rides and open plans), with a status. */
+export async function departures(db: Db, now: Date) {
+  const from = new Date(now.getTime() - 30 * 60_000);
+  const to = new Date(now.getTime() + 18 * 3600_000);
+  const [rs, ps] = await Promise.all([
+    db.select().from(rides).where(and(eq(rides.status, "matched"), gt(rides.departAt, from), lt(rides.departAt, to))),
+    db.select({ plan: plans, name: users.name, vehicle: users.vehicle }).from(plans).innerJoin(users, eq(plans.userId, users.id))
+      .where(and(eq(plans.status, "open"), gt(plans.departAt, from), lt(plans.departAt, to))),
+  ]);
+  const ids = [...new Set(rs.flatMap((r) => [r.pilotId, r.hitcherId]))];
+  const us = ids.length ? await db.select().from(users).where(inArray(users.id, ids)) : [];
+  const nm = (id: number) => us.find((u) => u.id === id)?.name ?? "?";
+  const status = (at: Date, kind: "ride" | "offer" | "request") => {
+    const m = (at.getTime() - now.getTime()) / 60_000;
+    if (kind === "ride") return m < -5 ? "DEPARTED" : m <= 15 ? "BOARDING" : "ON TIME";
+    if (kind === "offer") return m < 0 ? "LEAVING" : "SEATS FREE";
+    return m < 0 ? "STILL WAITING" : "SEEKING SEAT";
+  };
+  return [
+    ...rs.map((r) => ({ at: r.departAt, from: r.fromPlace, to: r.toPlace, note: null as string | null, rangeKm: r.rangeKm, who: `${nm(r.pilotId)} + ${nm(r.hitcherId)}`, vehicle: us.find((u) => u.id === r.pilotId)?.vehicle ?? "scooty", status: status(r.departAt, "ride") })),
+    ...ps.map(({ plan: p, name, vehicle }) => ({ at: p.departAt, from: p.fromPlace, to: p.toPlace, note: p.note, rangeKm: p.rangeKm, who: name, vehicle: p.kind === "offer" ? vehicle : "none", status: status(p.departAt, p.kind as "offer" | "request") + (p.kind === "offer" && p.seats > 1 ? ` ×${p.seats}` : "") })),
+  ].sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
+/** Kaju leaders, all time and today (for the hidden board). */
+export async function kajuLeaders(db: Db, now: Date, limit = 10) {
+  const row = { id: users.id, name: users.name, avatar: users.avatar, scooty: users.scooty, n: sql<number>`sum(${kaju.amount})::int` };
+  const [all, today] = await Promise.all([
+    db.select(row).from(kaju).innerJoin(users, eq(kaju.userId, users.id)).groupBy(users.id).orderBy(desc(sql`sum(${kaju.amount})`)).limit(limit),
+    db.select(row).from(kaju).innerJoin(users, eq(kaju.userId, users.id)).where(gte(kaju.createdAt, istDayStart(now))).groupBy(users.id).orderBy(desc(sql`sum(${kaju.amount})`)).limit(limit),
+  ]);
+  return { all, today };
 }
 
 /** After a ride is done: the village crossed a milestone (1st, 10th, 25th ride…)? Celebrate once in the group. */

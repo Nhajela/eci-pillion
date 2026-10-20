@@ -7,12 +7,11 @@ import { FLOAT_RADIUS_M, MATCH_WINDOW_MIN, VILLAGE_RADIUS_M } from "@/lib/match"
 import { SAME_PLACE_M } from "@/lib/places";
 import { CHECK_AFTER_MIN, CHECK_GRACE_MIN } from "@/services/floats";
 import { DEDUPE_M } from "@/services/places";
-import { PRIZE_KAJU, PRIZES } from "@/services/prizes";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "How Pillion works (beta)",
-  description: "Everything about Pillion: how to share a ride, float, earn kaju and win the 9pm prizes, step by step.",
+  description: "Everything about Pillion: how to share a ride, float, and earn kaju, step by step.",
 };
 
 const km = (m: number) => `${m / 1000} km`;
@@ -23,10 +22,9 @@ const BEATS: Beat[] = [
   { time: "8:41am", who: "Both", title: "Matched!", body: "Both get a message with the other's name and Telegram, so they can say where exactly to meet. Ben's other requests around that time close: nobody is in two places at once.", gif: "/gifs/matched.gif" },
   { time: "1:25pm", who: "Both", title: "Helmet check", body: "Fifteen minutes before, the bot reminds them both. If something came up, “Can't make it” is right there (inside 30 minutes it costs 5 kaju, and the other person gets a kind note)." },
   { time: "2:00pm", who: "Both", title: "“Did you ride together?”", body: "Twenty minutes after the time, the bot asks. One ✅ from either of them is enough.", gif: "/gifs/kaju.gif", kaju: `Asha +${KAJU.ridePilot}, Ben +${KAJU.rideHitcher}` },
-  { time: "4:10pm", who: "Flo (scooty, nowhere to be)", title: "Flo floats", body: "Flo shares her live location with the bot and lies on the sand. She earns 5 kaju every 15 minutes while she's floating.", gif: "/gifs/float.gif", kaju: `+${KAJU.floatPer15} per 15 min` },
+  { time: "4:10pm", who: "Flo (scooty, nowhere to be)", title: "Flo floats", body: "Flo shares her live location with the bot and lies on the sand. She earns 10 kaju an hour while she's floating.", gif: "/gifs/float.gif", kaju: `+${KAJU.floatPer30 * 2} an hour` },
   { time: "4:32pm", who: "Ben", title: "A quick errand", body: "Ben needs the pharmacy and back. He asks for “Quick errand nearby & back” from Riva, now. Flo is within 3 km, so she's pinged with “I'll take them” and “Can't right now”." },
   { time: "4:33pm", who: "Flo", title: "Floaters say yes", body: `Flo taps “I'll take them”. (If she'd said no, or ignored it for ${KAJU.floaterAnswerMin} minutes while nobody else took it, she'd lose ${-KAJU.floaterRefusal} kaju and the last hour of float pay, and her float would end. Busy? /stop first, no penalty.)` },
-  { time: "9:00pm", who: "Everyone", title: "Prizes!", body: `Many small winners every evening: Most Generous Pilot, Earliest Bird, Longest Float, Best Avatar, Pharmacy Run Hero, Mystery Kaju. Each winner gets ${PRIZE_KAJU} kaju and a real, small prize.`, gif: "/gifs/prizes.gif" },
 ];
 
 const KAJU_ROWS: [string, string, string][] = [
@@ -36,8 +34,7 @@ const KAJU_ROWS: [string, string, string][] = [
   ["Post a plan for right now", `+${KAJU.planNow}`, "Spontaneity is a virtue, a smaller one."],
   ["A ride happens, you were the pilot", `+${KAJU.ridePilot}`, `You brought the wheels. The same two people are paid for ${KAJU.pairRidesPerDay} rides together a day.`],
   ["A ride happens, you were the hitcher", `+${KAJU.rideHitcher}`, "You brought the company."],
-  ["Float", `+${KAJU.floatPer15} / 15 min`, `7am to 11pm only, up to ${KAJU.floatMaxPerDay} a day.`],
-  ["Win a 9pm prize", `+${PRIZE_KAJU}`, "Plus the prize itself."],
+  ["Float", `+${KAJU.floatPer30 * 2} / hour`, `Paid per half hour, 7am to 11pm, up to ${KAJU.floatMaxPerDay} a day. Can't answer a request in that hour? The hour isn't paid.`],
   ["A friend you invited signs up", `+${KAJU.inviteJoin}`, "Your link, or /invite @their_username."],
   ["…and takes their first ride", `+${KAJU.inviteRide}`, "The part that matters: a new rider in the village."],
   ["Cancel inside 30 min of the time", `${KAJU.lateCancel}`, "Someone was waiting by the gate."],
@@ -80,10 +77,10 @@ export default async function HowItWorks() {
         <p className="sub">
           Pillion is the village sharing rides: people with a scooty or a car say where they&apos;re going, people without
           one hop on, and people with nowhere to be float around and pick folks up. It all happens in a Telegram bot,
-          and it&apos;s a game: everything earns <b>kaju</b>, and every evening there are prizes.
+          and it&apos;s a game: everything earns <b>kaju</b>.
         </p>
         <nav className="toc" aria-label="On this page">
-          {[["#story", "A day, tap by tap"], ["#start", "Get started"], ["#pilot", "Pilot"], ["#hitcher", "Hitcher"], ["#floater", "Floater"], ["#places", "Places"], ["#invites", "Invites"], ["#board", "Board"], ["#kaju", "Kaju"], ["#prizes", "Prizes"], ["#fair", "Fair play"], ["#commands", "Commands"], ["#beta", "Beta"], ["#team", "For the team"]].map(([href, label]) => (
+          {[["#story", "A day, tap by tap"], ["#start", "Get started"], ["#pilot", "Pilot"], ["#hitcher", "Hitcher"], ["#floater", "Floater"], ["#places", "Places"], ["#invites", "Invites"], ["#board", "Board"], ["#kaju", "Kaju"], ["#fair", "Fair play"], ["#commands", "Commands"], ["#beta", "Beta"], ["#team", "For the team"]].map(([href, label]) => (
             <a key={href} href={href} className="chip">{label}</a>
           ))}
         </nav>
@@ -139,7 +136,7 @@ export default async function HowItWorks() {
           <p>The most helpful thing in the village is a person with a scooty and no plans. That&apos;s why floaters earn the most.</p>
           <ol className="steps">
             <li><b>Start.</b> In the bot: 📎 → Location → <b>Share My Live Location</b>. You&apos;re floating, near whichever place is closest. (A one-off pin floats you for an hour.)</li>
-            <li><b>Get paid to exist.</b> {KAJU.floatPer15} kaju every 15 minutes, 7am to 11pm, up to {KAJU.floatMaxPerDay} a day. Only inside the village (within {km(VILLAGE_RADIUS_M)} of a known place), and only with wheels.</li>
+            <li><b>Get paid to exist.</b> {KAJU.floatPer30 * 2} kaju an hour (paid per full half hour), 7am to 11pm, up to {KAJU.floatMaxPerDay} a day. Only inside the village (within {km(VILLAGE_RADIUS_M)} of a known place), and only with wheels.</li>
             <li><b>Say yes.</b> When someone within {km(FLOAT_RADIUS_M)} needs a ride in the next hour, you get a ping with <b>I&apos;ll take them</b> and <b>Can&apos;t right now</b>. Answer within {KAJU.floaterAnswerMin} minutes.</li>
             <li><b>The one rule.</b> Saying no (or not answering while nobody else takes it) means you weren&apos;t really floating: {KAJU.floaterRefusal} kaju, the last hour isn&apos;t paid, and the float ends. Someone else grabbing it first costs nothing. Not free any more? <b>/stop</b> first, no penalty.</li>
             <li><b>Still there?</b> If your location hasn&apos;t moved for {CHECK_AFTER_MIN} minutes, the bot asks “Still floating?”. No answer in {CHECK_GRACE_MIN} minutes and the float ends where it asked. Floats end when you stop sharing, on /stop, or after 8 hours.</li>
@@ -155,6 +152,7 @@ export default async function HowItWorks() {
           <li><b>Not on the list?</b> Tap “➕ Somewhere else” and type it: your stay, a café, a beach shack. The bot asks you to drop a pin (📎 → Location → move the map → send). From then on it&apos;s on the list for everyone. Nobody has to add places by hand.</li>
           <li><b>No duplicates.</b> The same name (any capitals) or a pin within {DEDUPE_M} m of a known place reuses that place.</li>
           <li><b>Close counts.</b> Two pinned places within {SAME_PLACE_M} m count as the same destination, so a ride to the stay next to Riva matches someone going to Riva.</li>
+          <li><b>Going to an event?</b> Pick “📅 To an event”: the next 12 hours of the Edge City calendar, already matched to where they are (most are at Riva or the Circle). The bot aims to get you there 15 minutes early, and drivers see which event it is.</li>
           <li><b>Or leave it open.</b> Pick “🧭 Open: I&apos;ll say how far” and choose ~2, 5, 10 or 15 km. A hitcher uses it for “somewhere about 5 km from Riva, I&apos;ll say where”; a pilot for “free to drop someone up to 5 km from the Circle”. Drivers starting within 1.5 km of the pickup get the ask, with the distance, and you sort out exactly where when you meet.</li>
           <li><b>How far is it?</b> Every ask and offer shows the trip (≈2.5 km · ~6 min) when both places have a pin: road distance is about 1.35× the straight line, at a scooty&apos;s ~25 km/h. So a driver knows what they&apos;re saying yes to.</li>
           <li><b>The crowd ranks places.</b> After the hubs and tonight&apos;s events, places come in the order the village has picked them this week. The board shows “Where the village goes”.</li>
@@ -168,7 +166,7 @@ export default async function HowItWorks() {
         <ol className="steps">
           <li><b>Share your link.</b> /invite in the bot (or the 💌 card on the site) gives you a personal link that opens the bot. Anyone who signs up through it is yours: +{KAJU.inviteJoin} kaju.</li>
           <li><b>Or name them.</b> <code>/invite @their_username</code> saves the invite. When that Telegram account signs up, link or not, it counts. One invite per person, ever: the first one to invite them gets it.</li>
-          <li><b>Their first ride pays more.</b> When your friend completes their first ride (as pilot or hitcher), you get +{KAJU.inviteRide}. The bot tells you both times.</li>
+          <li><b>Their first ride pays more.</b> When your friend completes their first ride (as pilot or hitcher) with someone other than you, you get +{KAJU.inviteRide}. The bot tells you both times. Sign-up kaju counts for up to {KAJU.inviteJoinsPerDay} friends a day.</li>
         </ol>
       </section>
 
@@ -176,15 +174,14 @@ export default async function HowItWorks() {
         <h2 id="board-h">The village board</h2>
         <p>
           <a href="/board">The board</a> is public: how many rides the village has shared, how many people have ridden and asked,
-          who&apos;s asking right now (with an “I&apos;ll take them” button), seats going, every ride that happened, and the people
-          making it happen: most generous pilots, most rides hitched, most friends brought, most devoted floaters. Every
-          milestone (the 1st ride, the 10th, 25th, 50th, 100th…) gets celebrated in the group.
+          who&apos;s asking right now (with an “I&apos;ll take them” button), seats going, every ride that happened, events coming up, and where the village goes. Every
+          milestone (the 1st ride, the 10th, 25th, 50th, 100th…) gets celebrated.
         </p>
       </section>
 
       <section id="kaju" className="kaju" aria-labelledby="kaju-h">
         <h2 id="kaju-h">Kaju: the whole table</h2>
-        <p className="lede">Kaju is pretend money (Goa is cashew country). It can&apos;t be bought, only earned. The prizes are real.</p>
+        <p className="lede">Kaju is pretend money (Goa is cashew country). It can&apos;t be bought, only earned.</p>
         <ul className="kaju-list">
           {KAJU_ROWS.map(([action, amount, note]) => (
             <li key={action}>
@@ -201,23 +198,13 @@ export default async function HowItWorks() {
         </p>
       </section>
 
-      <section id="prizes" aria-labelledby="prizes-h">
-        <h2 id="prizes-h">The 9pm prizes</h2>
-        <p className="lede">Every evening at 9, many small winners, never one big one. Ties: everyone tied wins. Each winner gets {PRIZE_KAJU} kaju and a small real prize. See who&apos;s ahead on <a href="/today">Today</a>.</p>
-        <ul className="prize-list">
-          {Object.values(PRIZES).map((p) => (
-            <li key={p.title}><b>{p.title}</b><span>{p.line}</span></li>
-          ))}
-        </ul>
-        <p className="hint">Best Avatar counts hearts: on Today, tap ♥ on avatars you love (one heart per person per day).</p>
-      </section>
-
       <section id="fair" aria-labelledby="fair-h">
         <h2 id="fair-h">Fair play (and why)</h2>
         <ul className="bullets">
           <li><b>Nobody is in two places at once.</b> A hitcher, scooty or bike has one ride per {MATCH_WINDOW_MIN} minutes either side; a car takes up to its seats. When you&apos;re matched, your other plans around then close.</li>
           <li><b>Cancelling.</b> Early: nothing happens. Inside 30 minutes (or after the time): {KAJU.lateCancel} kaju, and the other person gets a kind note.</li>
           <li><b>“It didn&apos;t happen.”</b> One “didn&apos;t happen” doesn&apos;t block the other person: if they say it did, it counts. Two noes close it. Rides nobody confirms expire after 24 hours with no kaju.</li>
+          <li><b>New here?</b> For a ride with an account that signed up less than {KAJU.newAccountHours} hours ago, both people say “we rode” before the kaju lands (normally one yes is enough). It keeps fake accounts from farming kaju.</li>
           <li><b>No farming.</b> At most {KAJU.planAwardsPerDay} paid plans a day; cancelling a plan nobody rode on takes its kaju back; the same two people are paid for {KAJU.pairRidesPerDay} rides together a day.</li>
           <li><b>Safety and privacy.</b> Rides are between village members on Telegram. Wear a helmet. Your location is only seen while you float, because you switched live location on; switch it off and you vanish.</li>
           <li><b>Not a taxi.</b> Nobody is working. It&apos;s neighbours going the same way. For Riva ↔ Circle, the shuttle is still your friend.</li>
@@ -248,13 +235,16 @@ export default async function HowItWorks() {
             <li><b>/admin</b> in the bot sends a one-time link. The dashboard shows today&apos;s numbers, every bug and idea (move them: on it, done, won&apos;t do; done thanks the reporter), matched rides, open plans, who&apos;s floating, places (add, rename, re-pin with “lat, lng” or a Google Maps link, change kind, hide) and people (roles).</li>
             <li><b>/staff</b> is the same dashboard, read-only.</li>
             <li>Every /bug, /error, /feature and /idea DMs every admin straight away (10 per person per hour at most).</li>
+            <li><b>Group messages</b> (matches, early birds, floaters, milestones) are saved on the dashboard, ready to copy, since there&apos;s no village group for now.</li>
+            <li><b>Fake accounts:</b> Telegram bot accounts are refused; the dashboard&apos;s “Worth a look” flags pairs riding together a lot, sign-up bursts and brand-new accounts riding a lot; an admin can set anyone to “blocked”.</li>
           </ul>
         </details>
         <details className="under">
           <summary>What happens when, automatically</summary>
           <ul className="bullets">
             <li><b>Every minute</b>: floater pings unanswered for {KAJU.floaterAnswerMin} min become refusals (if the request is still open); quiet floats get “still floating?”; floats past their time end and are paid; old plans and unconfirmed rides expire; rides 15 min away get a reminder; rides 20 min past get “did you ride together?”.</li>
-            <li><b>8:00am</b>: a good-morning nudge to the announcement group. <b>9:00pm</b>: prizes are computed, paid and posted.</li>
+            <li><b>8:00am</b>: a good-morning message. Messages meant for a group (matches, early birds, milestones) are saved on the admin dashboard for now, to share by hand. (Daily prizes are switched off.)</li>
+            <li><b>Every 10 minutes</b>: the next 36 hours of public Edge City events are read from EdgeOS (read-only) and matched to places.</li>
             <li>Every scheduled message is sent once, even if the app restarts.</li>
           </ul>
         </details>

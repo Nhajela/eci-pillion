@@ -38,7 +38,7 @@ A static location counts as floating for 60 minutes.
 | signup | +10 once |
 | plan (lead ≥ 2 h / ≥ 30 min / less) | +15 / +10 / +5, max 3 plan awards per IST day |
 | ride_pilot / ride_hitcher | +30 / +10 when a ride is done |
-| float | +5 per 15 min, ≤ 120 per IST day |
+| float | +10 an hour, paid per full 30 min, ≤ 120 per IST day (changed 20 Oct from +5 per 15 min) |
 | late_cancel | −5 |
 | floater_refusal | −10 when a floater taps "Can't right now" on a nearby request, or leaves it unanswered for 10 min while it stays open. The float ends and its last hour is unpaid (`forfeit_minutes` += 60). Stopping a float first costs nothing. |
 | plan_cancel | cancelling a plan nobody ever rode on gives its plan kaju back |
@@ -124,3 +124,22 @@ until there's activity), /home, /today and the explainer.
   match messages, the bot's confirmations, /home and /board ("≈2.5 km · ~6 min", "up to ~5 km · ~12 min").
 - Crowd ranking: after hubs and events, pickers sort places by how often they were a destination in the last 7 days.
   The board lists "Where the village goes".
+
+## Release 9 (20 Oct)
+- **No daily prizes for now** (`PRIZES_ON = false` in `services/prizes.ts`; the rules stay for later). Prize copy is off
+  the site, /today shows the map, numbers and today's rides. Leaderboards moved to a hidden flight board.
+- **Hidden flight board** `/departures` (not linked, `noindex`): departures (matched rides and open plans for the next
+  18 h, with BOARDING / ON TIME / SEEKING SEAT / SEATS FREE), arrivals, who's floating, kaju today and all time, and the
+  four leaderboards.
+- **No group**: `ANNOUNCE_CHAT_ID` is unset; every group message is saved in `announcements` and shown on the admin
+  dashboard with a Copy button. If a chat id is ever set, they're posted as well.
+- **Events as destinations**: `EDGEOS_KEY` (read-only; `PILLION_EDGEOS_KEY` in secrets). Every 10 minutes the ticker
+  syncs the next 36 h of public published events of the edge-india popup into `edge_events`, resolving the venue to a
+  place (`venueToName`: Riva rooms → riva, Circle.Work / Cuebebar → circle, "X 2nd floor above Y" → X, TBD / remote /
+  links → none). `/ride` or `/go` → 📅 To an event: destination = the event's place, note = its title, leave 15 min
+  before it starts. The web form has the same under "📅 Events coming up". The board lists what's coming up.
+- **Fake-account guards** (no group membership check): `is_bot` updates are ignored; rides with an account onboarded
+  < 24 h ago need both "yes" (`rides.confirmed_by`); invite join kaju ≤ 5 a day per inviter and the first-ride bonus
+  ignores rides with the inviter; role `blocked` (admin-set) can't post, take, hop, float or earn; the dashboard's
+  "Worth a look" lists pairs with ≥ 3 rides together, ≥ 3 invited sign-ups in 24 h, and accounts < 48 h old with ≥ 2 rides.
+- **Float pay**: +10 an hour (5 per full half hour), was +20.

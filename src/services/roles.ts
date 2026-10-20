@@ -5,8 +5,14 @@ import { GameError } from "./errors";
 
 // Roles, like the shuttle app: member (everyone), staff (sees the dashboard), admin (changes things, gets reports).
 // The first admins come from BOOTSTRAP_ADMINS (Telegram usernames, comma-separated, @ optional); they make others.
-export type Role = "member" | "staff" | "admin";
-export const ROLES: Role[] = ["member", "staff", "admin"];
+export type Role = "member" | "staff" | "admin" | "blocked";
+export const ROLES: Role[] = ["member", "staff", "admin", "blocked"];
+
+/** Blocked accounts (fake or misbehaving, an admin's call) can't post, ride, float or earn. */
+export const isBlocked = (u: Pick<User, "role"> | null | undefined) => u?.role === "blocked";
+export function assertActive(u: Pick<User, "role">) {
+  if (isBlocked(u)) throw new GameError("Your Pillion is paused. If that's a mistake, tell the team with /bug.");
+}
 
 export const isAdmin = (u: Pick<User, "role"> | null | undefined) => u?.role === "admin";
 export const isStaff = (u: Pick<User, "role"> | null | undefined) => u?.role === "staff" || u?.role === "admin";

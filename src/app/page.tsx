@@ -53,30 +53,21 @@ const KAJU = [
   ["Ride-now alert", "+5", "Spontaneity is still a virtue. A smaller one."],
   ["Complete a ride as pilot", "+30", "You brought the Activa. Respect."],
   ["Complete a ride as hitcher", "+10", "You brought the company. Also respect."],
-  ["Float for an hour", "+20", "Every hour, 7am to 11pm. Nap on the beach, get rich."],
+  ["Float for an hour", "+10", "Every hour, 7am to 11pm. Nap on the beach, get rich. But if a request comes in that hour and you can't answer it, that hour's kaju goes."],
   ["Cancel last-minute", "−5", "Not a punishment. Someone just checked their phone twice."],
   ["Floater turns down a request", "−10", "And that hour isn't paid. If you say no, you weren't really floating. Busy? Stop floating first."],
 ];
 
-const PRIZES = [
-  ["Most Generous Pilot", "Most people carried, most kaju in the jar."],
-  ["Earliest Bird", "Posted tomorrow's ride while everyone else was asleep."],
-  ["Longest Float", "Did the least, helped the most."],
-  ["Best Avatar", "The scribble the whole map stops to look at."],
-  ["Pharmacy Run Hero", "Someone needed Crocin at 11pm. You went."],
-  ["Mystery Kaju", "Picked at random from everyone who rode today. Just show up."],
-];
 
 const ROADMAP = (live: boolean) => [
   ["Beta: bugs, ideas, any place, errands", "live now", "Type /bug or /feature in the bot. Name any stay or café as a destination. Ask for a quick errand and back."],
   ["This page + your avatar", "live now", "Draw yourself right after you sign up: it's you on the map and next to your rides."],
   ["Telegram login", live ? "live now" : "built, bot waking up", "Your avatar meets your Telegram name. Now the village knows you."],
   ["Sign-up, rides, floating, kaju", live ? "live now" : "built, bot waking up", "Pilots post, hitchers hop, floaters float. The map wakes up."],
-  ["Daily prizes", live ? "live now" : "built, bot waking up", "Every evening at 9, many small winners."],
 ];
 
 const FAQ = [
-  ["Is it free?", "Yes. Kaju is pretend money. Rides are favours between neighbours. The prizes are real, but you can't buy them, only earn them."],
+  ["Is it free?", "Yes. Kaju is pretend money: it can't be bought, only earned. Rides are favours between neighbours."],
   ["Is this finished?", "No! Pillion is a beta and an experiment. Some things will be wobbly. Tap the 🧪 Beta button (or type /bug or /feature in the bot) and the team hears about it straight away."],
   ["Where can I go?", "Anywhere around the village. Riva and the Circle are the hubs and come first in every list, and the evening community dinner is always there. Staying somewhere that isn't listed? Pick “Somewhere else”, type its name, and drop a pin: it's on the list for everyone from then on. Places close together count as the same destination, so the stay next to Riva matches rides to Riva."],
   ["Can I just pop to a shop and back?", "Yes. Ask for a ride and pick “Quick errand nearby & back”, then say what it's for (pharmacy, ATM, laundry). A floater near you gets pinged, takes you, waits or comes back, and drops you home."],
@@ -102,7 +93,7 @@ export default async function Home() {
           <h1>Your scooty has a lonely back seat.</h1>
           <p className="sub">
             Pillion matches people with scooties (and a few cars) to people without them, all over the village.
-            Rides earn kaju. Kaju wins prizes. Nobody&apos;s late to dinner.
+            Rides earn kaju. Nobody&apos;s late to dinner.
           </p>
           <div className="hero-ctas">
             {user ? (
@@ -198,7 +189,7 @@ export default async function Home() {
             </li>
           ))}
         </ul>
-        <p className="fine">Kaju is fake. The prizes are not.</p>
+        <p className="fine">Kaju is pretend. The rides are real.</p>
       </section>
 
       <section className="early" aria-labelledby="early-h">
@@ -221,24 +212,10 @@ export default async function Home() {
 
       <section className="how-teaser" aria-labelledby="teaser-h">
         <h2 id="teaser-h">How it works, in full</h2>
-        <p className="lede">Step by step: signing up, posting a ride, floating, errands, places, every kaju rule, the prizes, and a village day you can tap through.</p>
+        <p className="lede">Step by step: signing up, posting a ride, floating, errands, places, every kaju rule, and a village day you can tap through.</p>
         <a className="btn" href="/how-it-works">Read how it works →</a>
       </section>
 
-      <section className="prizes" aria-labelledby="prizes-h">
-        <div className="prizes-head">
-          <div>
-            <h2 id="prizes-h">Daily prizes, lots of them</h2>
-            <p className="lede">Every evening, many small winners. Never one big one. Exact prizes to be revealed: we&apos;re still choosing between things you can eat and things you can keep.</p>
-          </div>
-          <img src="/art/prizes.webp" alt="" width={768} height={429} loading="lazy" />
-        </div>
-        <ul className="prize-list">
-          {PRIZES.map(([name, line]) => (
-            <li key={name}><b>{name}</b><span>{line}</span></li>
-          ))}
-        </ul>
-      </section>
 
       <section className="roadmap" aria-labelledby="road-h">
         <h2 id="road-h">What&apos;s live, what&apos;s next</h2>

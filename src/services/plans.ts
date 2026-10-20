@@ -11,6 +11,7 @@ import { award, earnedToday } from "./kaju";
 import { cancelRideInTx, type Effects } from "./rides";
 import { pingFloater } from "./floats";
 import { once } from "./once";
+import { assertActive } from "./roles";
 
 export { GameError } from "./errors";
 import { GameError } from "./errors";
@@ -36,6 +37,7 @@ const takeButtons = (requestId: number) => [[{ text: "🙋 I'll take them", data
 
 /** Post a plan, pay its kaju, and ping the people who could match it. */
 export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan, now: Date) {
+  assertActive(user);
   const v = validatePlan(input, now, maxSeats(user.vehicle));
   const lead = Math.max(0, Math.round((v.departAt.getTime() - now.getTime()) / 60_000));
   const { plan, got } = await db.transaction(async (tx) => {

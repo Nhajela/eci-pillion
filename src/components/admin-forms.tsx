@@ -34,6 +34,7 @@ export function RoleSelect({ id, role, self }: { id: number; role: string; self:
         <option value="member">member</option>
         <option value="staff">staff</option>
         <option value="admin">admin</option>
+        <option value="blocked">blocked</option>
       </select>
       {msg && <span className="act-msg" role="status">{msg}</span>}
     </span>

@@ -7,7 +7,7 @@ export const KAJU = {
   planAwardsPerDay: 3,
   ridePilot: 30,
   rideHitcher: 10,
-  floatPer15: 5,
+  floatPer30: 5, // +10 an hour, paid per full half hour
   floatMaxPerDay: 120,
   lateCancel: -5,
   floaterRefusal: -10, // a floater who refuses (or ignores) a nearby request: −10, the last hour unpaid, float ends
@@ -15,7 +15,9 @@ export const KAJU = {
   floaterAnswerMin: 10, // minutes a pinged floater has to answer before it counts as a refusal
   pairRidesPerDay: 2, // the same pilot + hitcher are paid for at most 2 rides a day (no ride farming)
   lateCancelWindowMin: 30,
-  inviteJoin: 10, // someone you invited signs up
+  inviteJoin: 10, // someone you invited signs up (at most inviteJoinsPerDay a day)
+  inviteJoinsPerDay: 5,
+  newAccountHours: 24, // rides with an account this new need both people to say "we rode"
   inviteRide: 15, // …and completes their first ride (the part that matters)
 } as const;
 
@@ -31,7 +33,7 @@ export function planKaju(leadMinutes: number) {
 
 /** Kaju for a float of `minutes`, given what floating already earned today. */
 export function floatKaju(minutes: number, earnedToday: number) {
-  const raw = Math.floor(Math.max(0, minutes) / 15) * KAJU.floatPer15;
+  const raw = Math.floor(Math.max(0, minutes) / 30) * KAJU.floatPer30;
   return Math.max(0, Math.min(raw, KAJU.floatMaxPerDay - earnedToday));
 }
 

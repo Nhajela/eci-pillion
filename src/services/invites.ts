@@ -5,7 +5,7 @@ import { invites, rides, users, type User } from "@/db/schema";
 import { esc, type Notifier } from "@/bot/telegram";
 import { env } from "@/lib/env";
 import { KAJU } from "@/lib/kaju";
-import { award } from "./kaju";
+import { award, earnedToday } from "./kaju";
 import { GameError } from "./errors";
 
 // Invites, after the assassins game: invite by @username (one invite per username, ever; first inviter wins), or share
@@ -64,6 +64,8 @@ export async function claimInvite(db: Db, n: Notifier, user: User, now: Date) {
     }
     if (!inviterId || inviterId === u.id) return null;
     if (!u.invitedBy) await tx.update(users).set({ invitedBy: inviterId }).where(eq(users.id, u.id));
+    const today = await earnedToday(tx, inviterId, "invite_join", now);
+    if (today.count >= KAJU.inviteJoinsPerDay) return null; // a burst of sign-ups from one person: no more join kaju today
     const got = await award(tx, inviterId, KAJU.inviteJoin, "invite_join", `invite:${u.id}`, now);
     return got ? { inviterId, got } : null;
   });
@@ -80,6 +82,7 @@ export async function claimInvite(db: Db, n: Notifier, user: User, now: Date) {
 export async function inviteFirstRide(db: Db, n: Notifier, people: User[], now: Date) {
   for (const p of people) {
     if (!p.invitedBy) continue;
+    if (people.some((o) => o.id === p.invitedBy)) continue; // riding with your own invitee doesn't count (no alt farming)
     const [c] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(rides)
@@ -108,4 +111,4 @@ export async function myInvites(db: Db, user: User) {
 
 /** Share text for Telegram's share sheet. */
 export const shareUrl = (link: string) =>
-  `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Join me on Pillion: spare scooty and car seats around the village. Share rides, earn kaju, win small prizes every evening. 🛵🥜")}`;
+  `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Join me on Pillion: spare scooty and car seats around the village. Share rides, earn kaju, help the village get around. 🛵🥜")}`;

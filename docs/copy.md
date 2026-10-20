@@ -55,7 +55,7 @@ Floating is for the day you have nowhere to be. Turn on live location in Telegra
 | Ride-now alert | +5 | Spontaneity is still a virtue. A smaller one. |
 | Complete a ride as pilot | +30 | You brought the Activa. Respect. |
 | Complete a ride as hitcher | +10 | You brought the company. Also respect. |
-| Float for an hour | +20 | Every hour. Nap on the beach, get rich. |
+| Float for an hour | +10 | Every hour, 7am to 11pm. Nap on the beach, get rich. But if a request comes in that hour and you can't answer it, that hour's kaju goes. |
 | Cancel last-minute | −5 | Not a punishment. Someone just checked their phone twice. |
 | Floater turns down a request | −10 | And that hour isn't paid. If you say no, you weren't really floating. |
 
@@ -112,7 +112,7 @@ Honest and incremental. Here's what's real and what's next.
 
 ## 8. Sample bot announcements
 
-1. Floater spotted near Ashwem! Priya has a free seat and zero plans. Need a ride? Reply /ride and she'll putter over. +20 kaju an hour, Priya. Living the dream.
+1. Floater spotted near Ashwem! Priya has a free seat and zero plans. Need a ride? Reply /ride and she'll putter over. +10 kaju an hour, Priya. Living the dream.
 2. Match made! Arjun (pilot) + Meera (hitcher) → Arambol, 4:15pm. Helmets on, kaju off the house. 🥜
 3. Early bird of the day: Tanvi posted her Morjim run at 7:40am for 6pm. That's 10 hours of foresight. +15 kaju and our undying admiration.
 4. Someone needs a ride to the pharmacy from Riva, now-ish. Any pilots nearby? Reply /pickup to claim. Small kaju, big karma.

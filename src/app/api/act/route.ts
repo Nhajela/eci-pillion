@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { db } from "@/db";
-import { hearts } from "@/db/schema";
+import { edgeEvents, hearts } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { currentUser, sameOrigin } from "@/lib/auth";
 import { COOKIE } from "@/lib/session";
 import { getNotifier } from "@/lib/runtime";
@@ -91,8 +92,15 @@ export async function POST(req: Request) {
         const departAt = b.when === "now" ? now : /^\+\d+$/.test(b.when) ? new Date(now.getTime() + Number(b.when.slice(1)) * 60_000) : istTimeToday(b.when, now);
         if (!departAt) throw new GameError("Pick a time like 4:30pm.");
         const fromPlace = b.fromName?.trim() ? (await findOrAddPlace(db(), user, b.fromName, null)).place.id : b.from;
-        const toPlace = b.toName?.trim() ? (await findOrAddPlace(db(), user, b.toName, null)).place.id : b.to;
-        const r = await createPlan(db(), n, user, { kind: b.kind, fromPlace, toPlace, departAt, seats: b.seats, note: b.note, rangeKm: b.rangeKm }, now);
+        let toPlace = b.toName?.trim() ? (await findOrAddPlace(db(), user, b.toName, null)).place.id : b.to;
+        let note = b.note;
+        if (b.to.startsWith("ev:")) {
+          const [ev] = await db().select().from(edgeEvents).where(eq(edgeEvents.id, b.to.slice(3)));
+          if (!ev?.placeId) throw new GameError("That event's gone from the calendar.");
+          toPlace = ev.placeId;
+          note = ev.title.slice(0, 60);
+        }
+        const r = await createPlan(db(), n, user, { kind: b.kind, fromPlace, toPlace, departAt, seats: b.seats, note, rangeKm: b.rangeKm }, now);
         return NextResponse.json({ ok: true, kaju: r.kaju, pinged: r.pinged });
       }
       case "cancelPlan": await cancelPlan(db(), n, user, b.id, now); break;

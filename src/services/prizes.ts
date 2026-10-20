@@ -5,6 +5,8 @@ import { istDayStart, istMinuteOfDay } from "@/lib/time";
 import { award } from "./kaju";
 
 export const PRIZE_KAJU = 20;
+/** Off for now (20 Oct): no daily prizes. The rules stay here for when we bring them back, made fun. */
+export const PRIZES_ON = false;
 
 export const PRIZES = {
   generous: { title: "Most Generous Pilot", line: "Most people carried today." },

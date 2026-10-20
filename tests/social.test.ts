@@ -19,7 +19,9 @@ const tap = (id: number, data: string): Update => ({ callback_query: { id: `q${M
 async function rideTogether(db: Awaited<ReturnType<typeof testDb>>, n: ReturnType<typeof notifier>, pilot: Parameters<typeof createPlan>[2], hitcher: Parameters<typeof createPlan>[2], min = 0) {
   const offer = await createPlan(db, n, pilot, { kind: "offer", fromPlace: "circle", toPlace: "riva", departAt: at(min + 30) }, at(min));
   const ride = await hopOn(db, n, hitcher, offer.plan.id, at(min + 1));
-  return confirmRide(db, n, hitcher, ride.id, true, at(min + 60));
+  const r = await confirmRide(db, n, hitcher, ride.id, true, at(min + 60));
+  // a brand-new account on the ride: the other one has to say it happened too
+  return "waiting" in r && r.waiting ? confirmRide(db, n, pilot, ride.id, true, at(min + 61)) : r;
 }
 
 describe("invites", () => {
@@ -52,7 +54,7 @@ describe("invites", () => {
   it("an @username invite counts even without the link; one per username; not yourself or someone already in", async () => {
     const db = await testDb();
     const n = notifier();
-    const fresh = await person(db, "Asha", "scooty");
+    const fresh = await person(db, "Asha", "scooty", { signedUp: false });
     await expect(inviteByUsername(db, fresh, "@friend")).rejects.toThrow(GameError); // not signed up yet
     await finishOnboarding(db, fresh.id, T0);
     const asha = (await getByTelegram(db, fresh.telegramId))!;

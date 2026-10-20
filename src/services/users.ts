@@ -5,7 +5,7 @@ import { KAJU } from "@/lib/kaju";
 import { award } from "./kaju";
 import { applyBootstrap } from "./roles";
 
-export type TgUser = { id: number; first_name?: string; last_name?: string; username?: string };
+export type TgUser = { id: number; is_bot?: boolean; first_name?: string; last_name?: string; username?: string };
 
 export async function upsertTelegramUser(db: Db, tg: TgUser): Promise<{ user: User; isNew: boolean }> {
   const r = await upsertRaw(db, tg);

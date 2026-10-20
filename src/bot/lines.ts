@@ -51,7 +51,7 @@ export const LINES: {
 
   floatStart: [
     ({ name, near }) =>
-      `Floater spotted near ${near}! <b>${name}</b> has a free seat and zero plans. Need a ride? Reply /ride. +20 kaju an hour. Living the dream.`,
+      `Floater spotted near ${near}! <b>${name}</b> has a free seat and zero plans. Need a ride? Reply /ride. +10 kaju an hour. Living the dream.`,
     ({ name, near }) =>
       `<b>${name}</b> is floating near ${near}. Nowhere to be, a scooty to share. Aimlessness, donated.`,
     ({ name, near }) =>

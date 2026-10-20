@@ -7,6 +7,7 @@ import { isLateCancel, KAJU, vehicleEmoji } from "@/lib/kaju";
 import { MATCH_WINDOW_MIN, offerFitsRequest } from "@/lib/match";
 import { destName, OPEN, placeName, tripLabel } from "@/lib/places";
 import { inviteFirstRide } from "./invites";
+import { assertActive } from "./roles";
 import { celebrateMilestone } from "./stats";
 import { istDayStart, istHHMM } from "@/lib/time";
 import { award } from "./kaju";
@@ -75,6 +76,7 @@ async function loadUsers(tx: Tx, a: number, b: number) {
 
 /** A pilot (or floater) takes a hitcher's request. First tap wins. */
 export async function takeRequest(db: Db, n: Notifier, pilot: User, requestId: number, now: Date) {
+  assertActive(pilot);
   const { ride, effects } = await db.transaction(async (tx) => {
     const [req] = await tx.select().from(plans).where(eq(plans.id, requestId)).for("update");
     if (!req || req.kind !== "request") throw new GameError("That ride request is gone.");
@@ -105,6 +107,7 @@ export async function takeRequest(db: Db, n: Notifier, pilot: User, requestId: n
 
 /** A hitcher hops onto a pilot's offer. */
 export async function hopOn(db: Db, n: Notifier, hitcher: User, offerId: number, now: Date) {
+  assertActive(hitcher);
   const { ride, effects } = await db.transaction(async (tx) => {
     const [offer] = await tx.select().from(plans).where(eq(plans.id, offerId)).for("update");
     if (!offer || offer.kind !== "offer") throw new GameError("That seat is gone.");
@@ -182,6 +185,14 @@ export async function confirmRide(db: Db, n: Notifier, user: User, rideId: numbe
       return { already: null, done: false as const };
     }
     if (r.departAt.getTime() > now.getTime() + 5 * 60_000) throw new GameError(`That ride is at ${istHHMM(r.departAt)}: confirm it once you've ridden!`);
+    // a brand-new account on either side: both have to say it happened (one "yes" isn't enough to farm kaju)
+    const [p0, h0] = await loadUsers(tx, r.pilotId, r.hitcherId);
+    const fresh = [p0, h0].some((u) => !u.onboardedAt || now.getTime() - u.onboardedAt.getTime() < KAJU.newAccountHours * 3600_000);
+    if (fresh && r.confirmedBy !== null && r.confirmedBy === user.id) return { already: null, done: false as const, waiting: true as const };
+    if (fresh && r.confirmedBy === null) {
+      await tx.update(rides).set({ confirmedBy: user.id }).where(eq(rides.id, r.id));
+      return { already: null, done: false as const, waiting: true as const };
+    }
     await tx.update(rides).set({ status: "done", completedAt: now }).where(eq(rides.id, r.id));
     if (r.requestId) await tx.update(plans).set({ status: "done" }).where(eq(plans.id, r.requestId));
     // the same two people are paid for at most N rides a day

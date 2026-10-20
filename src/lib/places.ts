@@ -42,7 +42,7 @@ export const RANGES_KM = [2, 5, 10, 15] as const;
 /** Where a plan is headed, for people: "Arambol", "a quick errand and back (pharmacy)", "somewhere ~5 km away". */
 export function destName(toPlace: string, note?: string | null, rangeKm?: number | null) {
   if (toPlace === OPEN.id) return `somewhere ~${rangeKm ?? "?"} km away${note ? ` (${note})` : ""}`;
-  return toPlace === ERRAND.id && note ? `${ERRAND.name} (${note})` : placeName(toPlace);
+  return note ? `${toPlace === ERRAND.id ? ERRAND.name : placeName(toPlace)} (${note})` : placeName(toPlace);
 }
 
 // Village roads wind: straight-line distance × 1.35, at a scooty's ~25 km/h.

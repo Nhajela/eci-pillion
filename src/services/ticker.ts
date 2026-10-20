@@ -3,19 +3,22 @@ import type { Db } from "@/db";
 import { rides, users } from "@/db/schema";
 import { esc, gifUrl, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
-import { destName, placeName } from "@/lib/places";
+import { destName } from "@/lib/places";
 import { istDay, istDayStart, istHHMM, istMinuteOfDay } from "@/lib/time";
 import { checkQuietFloats, closeExpiredFloats, resolvePings } from "./floats";
 import { expireRides } from "./rides";
 import { expirePlans } from "./plans";
 import { loadPlaces } from "./places";
-import { awardWinners, computeWinners, namesFor, PRIZE_KAJU, PRIZES } from "./prizes";
+import { syncEvents } from "./events";
+import { awardWinners, computeWinners, namesFor, PRIZE_KAJU, PRIZES, PRIZES_ON } from "./prizes";
 
 export { once } from "./once";
 import { once } from "./once";
 
 export async function tick(db: Db, n: Notifier, now: Date) {
   await loadPlaces(db);
+  // EdgeOS events every 10 minutes; a failure here must never stop the rest of the tick
+  if (await once(db, `events:${Math.floor(now.getTime() / 600_000)}`)) await syncEvents(db, now).catch((e) => console.error("event sync failed", (e as Error).message));
   await resolvePings(db, n, now);
   await checkQuietFloats(db, n, now);
   await closeExpiredFloats(db, n, now);
@@ -50,7 +53,7 @@ export async function tick(db: Db, n: Notifier, now: Date) {
   const minute = istMinuteOfDay(now);
   const day = istDay(now);
   if (minute >= 8 * 60 && minute < 8 * 60 + 30 && (await once(db, `morning:${day}`))) await n.announce(pick(LINES.morning, {}));
-  if (minute >= 21 * 60 && (await once(db, `prizes:${day}`))) await postPrizes(db, n, day, now);
+  if (PRIZES_ON && minute >= 21 * 60 && (await once(db, `prizes:${day}`))) await postPrizes(db, n, day, now);
 }
 
 export async function postPrizes(db: Db, n: Notifier, day: string, now: Date) {

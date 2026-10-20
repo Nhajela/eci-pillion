@@ -23,8 +23,8 @@ describe("floaters say yes", () => {
     const ping = n.dms.find((m) => m.to === f.telegramId && m.buttons?.[0][1]?.data === `nope:${req.plan.id}`);
     expect(ping).toBeTruthy();
     const r = await refuseRequest(db, n, f, req.plan.id, at(95));
-    expect(r).toEqual({ lost: -10, paid: 10 }); // 95 min, 60 forfeited → 35 → 2 quarters → 10
-    expect(await balance(db, f.id)).toBe(0);
+    expect(r).toEqual({ lost: -10, paid: 5 }); // 95 min, 60 forfeited → 35 → 1 half hour → 5
+    expect(await balance(db, f.id)).toBe(-5);
     const [fl] = await db.select().from(floats).where(eq(floats.userId, f.id));
     expect(fl.endedAt).not.toBeNull();
     await expect(refuseRequest(db, n, f, req.plan.id, at(96))).rejects.toThrow(/already sorted/);
@@ -57,7 +57,7 @@ describe("floaters say yes", () => {
     await takeRequest(db, n, f1, req.plan.id, at(63));
     await tick(db, n, at(75));
     expect(await balance(db, f2.id)).toBe(0);
-    expect(await balance(db, f3.id)).toBe(20); // 62 min → 4 quarters
+    expect(await balance(db, f3.id)).toBe(10); // 62 min → 2 half hours
     const active = await db.select().from(floats).where(eq(floats.userId, f2.id));
     expect(active[0].endedAt).toBeNull();
   });
@@ -90,7 +90,7 @@ describe("floaters say yes", () => {
     await tick(db, n, at(82)); // 16 min, no answer
     const [fl] = await db.select().from(floats).where(eq(floats.userId, f.id));
     expect(fl.endedAt!.getTime()).toBe(at(66).getTime());
-    expect(await balance(db, f.id)).toBe(20); // 66 min → 4 quarters
+    expect(await balance(db, f.id)).toBe(10); // 66 min → 2 half hours
   });
 
   it("only wheels, only the village, only waking hours", async () => {

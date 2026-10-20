@@ -6,6 +6,11 @@ import { vehicleEmoji } from "@/lib/kaju";
 import { destName, nearestPlace, placeName } from "@/lib/places";
 import { istHHMM } from "@/lib/time";
 import { dashboard } from "@/services/dashboard";
+import { KAJU } from "@/lib/kaju";
+import { CopyButton } from "@/components/copy-button";
+
+/** Telegram HTML → plain text for pasting into a group by hand. */
+const plain = (html: string) => html.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
 const STATUS_NEXT: Record<string, [string, string][]> = {
   new: [["doing", "On it"], ["done", "Done ✓"], ["wontdo", "Won't do"]],
@@ -59,6 +64,25 @@ export async function Dashboard({ me, canEdit }: { me: User; canEdit: boolean })
           </div>
         ))}
         {canEdit && <p className="hint">Marking done or won&apos;t do sends the reporter a thank-you on Telegram.</p>}
+      </section>
+
+      <section className="card" id="watch">
+        <h2>🚩 Worth a look</h2>
+        <p className="hint">Signs of fake accounts or kaju farming. Nothing happens automatically: if something&apos;s off, set that person to “blocked” under People (they can&apos;t post, ride, float or earn).</p>
+        {!d.watch.length ? <p className="empty">Nothing odd right now.</p> : <ul className="bullets">{d.watch.map((w) => <li key={w}>{w}</li>)}</ul>}
+        <p className="hint">Always on: Telegram bot accounts are refused; rides with an account under {KAJU.newAccountHours} h old need both people to confirm; invite kaju is capped at {KAJU.inviteJoinsPerDay} sign-ups a day and the first-ride bonus doesn&apos;t count rides with the inviter.</p>
+      </section>
+
+      <section className="card" id="announcements">
+        <h2>📣 Group messages</h2>
+        <p className="hint">What the bot would post to a village group: matches, early birds, floaters, milestones. There&apos;s no group for now, so they wait here. Copy one to share it anywhere.</p>
+        {!d.announcements.length && <p className="empty">Nothing yet. They appear as people post plans, float and ride.</p>}
+        {d.announcements.map((a) => (
+          <div key={a.id} className="line">
+            <span><span className="hint">{when(a.createdAt)}{a.posted ? " · posted" : ""}</span><span className="report-text">{plain(a.text)}</span></span>
+            <CopyButton text={plain(a.text)} />
+          </div>
+        ))}
       </section>
 
       <section className="card">

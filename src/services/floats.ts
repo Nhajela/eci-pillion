@@ -50,6 +50,7 @@ export async function locate(db: Db, n: Notifier, user: User, loc: { lat: number
   const [active] = await db.select().from(floats).where(and(eq(floats.userId, user.id), isNull(floats.endedAt)));
   const near = nearestPlace(loc).place.name;
   if (user.vehicle === "none") return { started: false, near, noWheels: true as const };
+  if (user.role === "blocked") return { started: false, near, blocked: true as const };
   if (!inVillage(loc)) {
     if (active) await endFloat(db, n, active, now, "left the village");
     return { started: false, near, outside: true as const };

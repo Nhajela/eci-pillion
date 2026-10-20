@@ -11,7 +11,7 @@ export const users = pgTable("users", {
   username: text("username"),
   name: text("name").notNull(),
   vehicle: text("vehicle").notNull().default("none"), // scooty | bike | car | none
-  role: text("role").notNull().default("member"), // member | staff (sees the dashboard) | admin (changes things)
+  role: text("role").notNull().default("member"), // member | staff (sees the dashboard) | admin (changes things) | blocked
   inviteCode: text("invite_code").unique(), // personal link t.me/<bot>?start=inv_<code>, made on first use
   invitedBy: integer("invited_by"), // who brought them (their link, or an @username invite); set once, before sign-up
   seats: integer("seats").notNull().default(0),
@@ -63,6 +63,7 @@ export const rides = pgTable(
     rangeKm: integer("range_km"), // to_place 'open': how far, copied from the plan
     status: text("status").notNull().default("matched"), // matched | done | cancelled | expired
     deniedBy: integer("denied_by").references(() => users.id), // said "didn't happen"; the other can still say yes
+    confirmedBy: integer("confirmed_by").references(() => users.id), // first "yes" when a brand-new account needs both
     cancelledBy: integer("cancelled_by").references(() => users.id),
     completedAt: ts("completed_at"),
     createdAt: ts("created_at").notNull().defaultNow(),
@@ -172,6 +173,30 @@ export const reports = pgTable(
   (t) => [index("reports_status").on(t.status, t.createdAt)],
 );
 
+/** What the bot would post to a group. There's no group for now, so admins see them on the dashboard to share by hand. */
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull(), // Telegram HTML
+  gif: text("gif"),
+  posted: boolean("posted").notNull().default(false), // sent to ANNOUNCE_CHAT_ID
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+/** Today's Edge City events, synced from EdgeOS every few minutes, so "the 7pm talk" is a destination. */
+export const edgeEvents = pgTable(
+  "edge_events",
+  {
+    id: text("id").primaryKey(), // EdgeOS event id
+    title: text("title").notNull(),
+    startAt: ts("start_at").notNull(),
+    endAt: ts("end_at").notNull(),
+    venue: text("venue"), // as EdgeOS names it
+    placeId: text("place_id"), // the Pillion place it resolves to
+    syncedAt: ts("synced_at").notNull().defaultNow(),
+  },
+  (t) => [index("edge_events_start").on(t.startAt)],
+);
+
 /** Scheduled messages already sent (idempotency for the ticker). */
 export const sentKeys = pgTable("sent_keys", {
   key: text("key").primaryKey(),
@@ -184,3 +209,4 @@ export type Ride = typeof rides.$inferSelect;
 export type Float = typeof floats.$inferSelect;
 export type PlaceRow = typeof places.$inferSelect;
 export type Report = typeof reports.$inferSelect;
+export type EdgeEvent = typeof edgeEvents.$inferSelect;

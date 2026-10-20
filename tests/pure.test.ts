@@ -11,10 +11,11 @@ describe("kaju rules", () => {
     expect(planKaju(45)).toBe(10);
     expect(planKaju(5)).toBe(5);
   });
-  it("pays floats per full 15 minutes, capped per day", () => {
-    expect(floatKaju(14, 0)).toBe(0);
-    expect(floatKaju(60, 0)).toBe(20);
-    expect(floatKaju(600, 100)).toBe(20);
+  it("pays floats per full half hour (+10 an hour), capped per day", () => {
+    expect(floatKaju(29, 0)).toBe(0);
+    expect(floatKaju(30, 0)).toBe(5);
+    expect(floatKaju(60, 0)).toBe(10); // +10 an hour
+    expect(floatKaju(600, 100)).toBe(20); // capped at 120 a day
   });
   it("calls a cancel late inside 30 minutes or after departure", () => {
     expect(isLateCancel(new Date(now.getTime() + 31 * 60_000), now)).toBe(false);

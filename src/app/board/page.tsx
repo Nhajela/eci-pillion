@@ -10,30 +10,14 @@ import { destName, placeName, tripLabel } from "@/lib/places";
 import { istHHMM } from "@/lib/time";
 import { balance } from "@/services/kaju";
 import { loadPlaces } from "@/services/places";
-import { leaders, openBoard, pulse, recentRides, topDestinations } from "@/services/stats";
+import { openBoard, pulse, recentRides, topDestinations } from "@/services/stats";
+import { upcomingEvents } from "@/services/events";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "The village board · Pillion (beta)",
-  description: "Every ride the village has shared, who's asking right now, and the most generous pilots.",
+  description: "Every ride the village has shared, who's asking right now, and where everyone's going.",
 };
-
-type Leader = { id: number; name: string; avatar: string | null; scooty: string; n: number };
-
-function Leaders({ title, rows, unit, empty }: { title: string; rows: Leader[]; unit: string; empty: string }) {
-  return (
-    <div className="leaders">
-      <h3>{title}</h3>
-      {!rows.length ? <p className="empty">{empty}</p> : (
-        <ol className="leader">
-          {rows.map((r) => (
-            <li key={r.id}><Face u={r} /><span className="lname">{r.name}</span><span className="lk">{r.n}<small> {unit}</small></span></li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
 
 export default async function Board() {
   if (!hasDb()) return <main className="narrow"><h1>The village board</h1><p>Opening soon.</p></main>;
@@ -41,7 +25,7 @@ export default async function Board() {
   const d = db();
   const now = new Date();
   await loadPlaces(d);
-  const [p, feed, top, open, dests] = await Promise.all([pulse(d, now), recentRides(d, 25), leaders(d), openBoard(d, now), topDestinations(d)]);
+  const [p, feed, open, dests, events] = await Promise.all([pulse(d, now), recentRides(d, 25), openBoard(d, now), topDestinations(d), upcomingEvents(d, now, 12)]);
   const asks = open.filter((o) => o.plan.kind === "request" && o.plan.userId !== user?.id);
   const seats = open.filter((o) => o.plan.kind === "offer" && o.plan.userId !== user?.id);
   const bot = env.botUsername();
@@ -54,7 +38,7 @@ export default async function Board() {
       )}
       <main className="app board">
         <h1>The village board</h1>
-        <p className="lede">Every ride the village has shared, who&apos;s asking right now, and the people making it happen. As of {istHHMM(now)}.</p>
+        <p className="lede">Every ride the village has shared, who&apos;s asking right now, and where everyone&apos;s going. As of {istHHMM(now)}.</p>
 
         <Pulse p={p} />
         <Milestone rides={p.rides} next={p.next} />
@@ -84,6 +68,16 @@ export default async function Board() {
           </section>
         )}
 
+        {events.length > 0 && (
+          <section className="card">
+            <h2>📅 Coming up: ride there</h2>
+            <p className="hint">From the Edge City calendar. In the bot, /ride → “📅 To an event” gets you there 15 minutes early.</p>
+            {events.slice(0, 8).map((e) => (
+              <div key={e.id} className="line"><span><b>{istHHMM(e.startAt)}</b> {e.title} · <b>{placeName(e.placeId!)}</b></span></div>
+            ))}
+          </section>
+        )}
+
         <section className="card">
           <h2>🎉 Rides that happened</h2>
           <RideFeed items={feed} now={now} />
@@ -100,16 +94,6 @@ export default async function Board() {
             </ol>
           </section>
         )}
-
-        <section className="card">
-          <h2>🏆 The people making it happen</h2>
-          <div className="leaders-grid">
-            <Leaders title="Most generous pilots" rows={top.pilots} unit="rides" empty="The first pilot's name goes here." />
-            <Leaders title="Most rides hitched" rows={top.hitchers} unit="rides" empty="Ask for a ride and you're on the board." />
-            <Leaders title="Brought the most friends" rows={top.inviters} unit="joined" empty="Invite a friend: /invite in the bot." />
-            <Leaders title="Most devoted floaters" rows={top.floaters} unit="kaju" empty="Share your live location and float." />
-          </div>
-        </section>
 
         <section className="card invite-cta">
           <h2>💌 More people, more rides</h2>

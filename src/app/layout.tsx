@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.PUBLIC_ORIGIN ?? "https://pillion.housefulloflove.com"),
   title: "Pillion (beta) · rides across the village",
   description:
-    "Your scooty has a lonely back seat. Share rides across Mandrem, earn kaju, win small daily prizes. Edge City India 2026.",
+    "Your scooty has a lonely back seat. Share rides across Mandrem, earn kaju. An experiment in sharing rides. Edge City India 2026.",
   openGraph: {
     title: "Pillion · your scooty has a lonely back seat",
     description: "Share rides across the village. Earn kaju. Meet one person.",

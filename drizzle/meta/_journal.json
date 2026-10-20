@@ -50,6 +50,13 @@
       "when": 1792484613214,
       "tag": "0006_open_destinations",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792489444903,
+      "tag": "0007_events_announcements_guard",
+      "breakpoints": true
     }
   ]
 }

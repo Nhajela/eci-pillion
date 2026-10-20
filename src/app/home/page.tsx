@@ -14,6 +14,7 @@ import { InviteCard } from "@/components/invite-card";
 import { Pulse } from "@/components/pulse";
 import { inviteLink, myInvites, shareUrl } from "@/services/invites";
 import { pulse } from "@/services/stats";
+import { leaveFor, upcomingEvents } from "@/services/events";
 import { KAJU } from "@/lib/kaju";
 import { istHHMM } from "@/lib/time";
 import { maxSeats, vehicleEmoji } from "@/lib/kaju";
@@ -37,7 +38,7 @@ export default async function Home() {
   const [kaju, hist, mine, board, live, floats] = await Promise.all([
     balance(d, user.id), history(d, user.id, 8), myPlans(d, user.id, now), openPlans(d, now), myRides(d, user.id), activeFloats(d, now),
   ]);
-  const [link, invited, village] = await Promise.all([inviteLink(d, user), myInvites(d, user), pulse(d, now)]);
+  const [link, invited, village, events] = await Promise.all([inviteLink(d, user), myInvites(d, user), pulse(d, now), upcomingEvents(d, now)]);
   const toConfirm = await d.select().from(rides).where(and(eq(rides.status, "matched"), lt(rides.departAt, new Date(now.getTime() - 20 * 60_000)), or(eq(rides.pilotId, user.id), eq(rides.hitcherId, user.id))));
   const otherIds = [...live, ...toConfirm].map((r) => (r.pilotId === user.id ? r.hitcherId : r.pilotId));
   const others = otherIds.length ? await d.select().from(users).where(inArray(users.id, otherIds)) : [];
@@ -98,7 +99,7 @@ export default async function Home() {
 
         <section className="card">
           <h2>Post a plan</h2>
-          <PlanForm places={allPlaces().map((p) => ({ id: p.id, name: p.name, kind: p.kind }))} hasWheels={user.vehicle !== "none"} maxSeats={Math.max(1, Math.min(user.seats, maxSeats(user.vehicle)))} car={user.vehicle === "car"} />
+          <PlanForm places={allPlaces().map((p) => ({ id: p.id, name: p.name, kind: p.kind }))} events={events.map((e) => ({ id: e.id, label: `${istHHMM(e.startAt)} ${e.title.slice(0, 40)} · ${placeName(e.placeId!)}`, leaveAt: istHHMM(leaveFor(e.startAt, now)) }))} hasWheels={user.vehicle !== "none"} maxSeats={Math.max(1, Math.min(user.seats, maxSeats(user.vehicle)))} car={user.vehicle === "car"} />
         </section>
 
         <section className="card">
@@ -124,7 +125,7 @@ export default async function Home() {
           <h2>🌴 Float</h2>
           {myFloat ? (
             <div className="line">
-              <span>You&apos;re floating near <b>{nearestPlace(myFloat.f).place.name}</b> since {istHHMM(myFloat.f.startedAt)}. 5 kaju every 15 minutes.</span>
+              <span>You&apos;re floating near <b>{nearestPlace(myFloat.f).place.name}</b> since {istHHMM(myFloat.f.startedAt)}. +10 kaju an hour (answer the pings, or that hour goes).</span>
               <ActButton body={{ action: "stopFloat" }} className="btn small ghost">Stop</ActButton>
             </div>
           ) : (

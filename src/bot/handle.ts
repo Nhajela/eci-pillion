@@ -14,6 +14,8 @@ import { finishOnboarding, getUser, updateUser, upsertTelegramUser, type TgUser 
 import { findOrAddPlace, loadPlaces, pinPlace } from "@/services/places";
 import { fileReport, type ReportKind } from "@/services/reports";
 import { isAdmin, isStaff } from "@/services/roles";
+import { leaveFor, upcomingEvents } from "@/services/events";
+import { edgeEvents } from "@/db/schema";
 import { claimInvite, inviteByUsername, inviteLink, myInvites, noteInviter, shareUrl } from "@/services/invites";
 import { KAJU } from "@/lib/kaju";
 import { esc, gifUrl, send, type Button, type Call, type Gif, type Notifier } from "./telegram";
@@ -51,7 +53,7 @@ const placeGrid = (prefix: string, opts: { skip?: string; errand?: boolean } = {
   const label = (p: (typeof ps)[number]) => (p.kind === "hub" ? `⭐ ${p.name}` : p.kind === "event" ? `🍲 ${p.name}` : p.kind === "stay" ? `🏡 ${p.name}` : p.name);
   const rows: Button[][] = [];
   if (opts.errand) rows.push([{ text: "🧺 Quick errand nearby & back", data: `${prefix}:${ERRAND.id}` }]);
-  if (prefix === "w:to") rows.push([{ text: "🧭 Open: I'll say how far", data: `${prefix}:${OPEN.id}` }]);
+  if (prefix === "w:to") rows.push([{ text: "📅 To an event", data: `${prefix}:+ev` }, { text: "🧭 Open: say how far", data: `${prefix}:${OPEN.id}` }]);
   for (let i = 0; i < ps.length; i += 2) rows.push(ps.slice(i, i + 2).map((p) => ({ text: label(p), data: `${prefix}:${p.id}` })));
   rows.push([{ text: "➕ Somewhere else (type it)", data: `${prefix}:+new` }]);
   return rows;
@@ -160,17 +162,18 @@ async function kajuInfo(ctx: Ctx, chatId: number, user: User) {
   const k = await balance(ctx.db, user.id);
   const h = await history(ctx.db, user.id, 6);
   const lines = h.map((r) => `${r.amount > 0 ? "+" : ""}${r.amount} · ${REASON_LABEL[r.reason] ?? r.reason}`);
-  await say(ctx, chatId, `🥜 <b>${k} kaju</b>\n${lines.join("\n")}\n\nDaily prizes at 9pm. See who's ahead:`, [[{ text: "🏆 Today", url: `${env.origin()}/today` }]]);
+  await say(ctx, chatId, `🥜 <b>${k} kaju</b>\n${lines.join("\n")}\n\nSee what the village is up to:`, [[{ text: "🏘️ Village board", url: `${env.origin()}/board` }]]);
 }
 
 const FLOAT_HELP =
-  "🌴 <b>Float</b>: tap 📎 → <b>Location</b> → <b>Share My Live Location</b>.\n\nWhile it's on, I'll ping you when someone near you needs a ride, and you earn 5 kaju every 15 minutes (7am–11pm).\n\n<b>The deal:</b> floaters say yes. If you turn down (or ignore) a nearby request, you weren't really floating: −10 kaju, the last hour isn't paid, and your float ends. Busy? Just /stop first, no penalty.";
+  "🌴 <b>Float</b>: tap 📎 → <b>Location</b> → <b>Share My Live Location</b>.\n\nWhile it's on, I'll ping you when someone near you needs a ride, and you earn 10 kaju an hour (7am–11pm).\n\n<b>The deal:</b> floaters say yes. If you turn down (or ignore) a nearby request, you weren't really floating: −10 kaju, the last hour isn't paid, and your float ends. Busy? Just /stop first, no penalty.";
 
 export async function handleUpdate(ctx: Ctx, u: Update) {
   await loadPlaces(ctx.db);
+  if (u.callback_query?.from.is_bot) return; // other bots don't get to play
   if (u.callback_query) return onButton(ctx, u.callback_query);
   const m = u.message ?? u.edited_message;
-  if (!m?.from || m.chat.type !== "private") return;
+  if (!m?.from || m.chat.type !== "private" || m.from.is_bot) return;
   const { user, isNew } = await upsertTelegramUser(ctx.db, m.from);
   const chatId = m.chat.id;
   const text = m.text?.trim() ?? "";
@@ -221,6 +224,7 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
   if (m.location) {
     const live = m.location.live_period ?? null;
     const res = await locate(ctx.db, ctx.n, user, { lat: m.location.latitude, lng: m.location.longitude, livePeriod: live }, ctx.now);
+    if ("blocked" in res) return say(ctx, chatId, "Your Pillion is paused. If that's a mistake, tell the team with /bug.");
     if ("noWheels" in res) return say(ctx, chatId, "Floating is for people with wheels, so you can pick folks up. Got some? Tell me with /wheels.");
     if ("outside" in res && !m.edit_date) return say(ctx, chatId, "That's outside the village map, so it doesn't count as floating. Come back to Mandrem and share again! 🌴");
     if (res.started) {
@@ -341,6 +345,7 @@ async function report(ctx: Ctx, chatId: number, user: User, kind: ReportKind, te
 async function afterNamed(ctx: Ctx, chatId: number, user: User, w: Wizard, placeId: string) {
   if (w.naming === "from") {
     if (placeId === w.to) return say(ctx, chatId, "That's where you're going! Where are you starting from?", placeGrid("w:from", { skip: w.to }));
+    if (w.at) return afterTime(ctx, chatId, user, { ...w, from: placeId, naming: undefined, pinFor: undefined });
     await updateUser(ctx.db, user.id, { botState: { ...w, from: placeId, step: "time", naming: undefined, pinFor: undefined } satisfies Wizard });
     return say(ctx, chatId, "Around when? Tap one, or type a time like <b>4:30pm</b>. (Earlier plans earn more kaju!)", TIME_BUTTONS);
   }
@@ -394,6 +399,18 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
         await afterNamed(ctx, chatId, user, w, w.pinFor);
       } else if (b === "skip" && w.step === "errand") {
         await afterErrand(ctx, chatId, user, w);
+      } else if (b === "to" && c === "+ev") {
+        const evs = await upcomingEvents(ctx.db, ctx.now);
+        if (!evs.length) await say(ctx, chatId, "I don't see any events in the next 12 hours. Pick a place instead:", placeGrid("w:to", { errand: w.kind === "request" }));
+        else await say(ctx, chatId, "📅 Which one? I'll aim to get you there 15 minutes early.", evs.map((e) => [{ text: `${istHHMM(e.startAt)} ${e.title.slice(0, 30)} · ${placeName(e.placeId!)}`, data: `w:ev:${e.id}` }]));
+      } else if (b === "ev") {
+        const [e] = await ctx.db.select().from(edgeEvents).where(eq(edgeEvents.id, data.slice(5)));
+        if (!e?.placeId) toast = "That event's gone from the calendar.";
+        else {
+          const at = leaveFor(e.startAt, ctx.now);
+          await updateUser(ctx.db, user.id, { botState: { ...w, to: e.placeId, note: e.title.slice(0, 60), at: at.toISOString(), step: "from" } satisfies Wizard });
+          await say(ctx, chatId, `📅 <b>${esc(e.title)}</b> at ${esc(placeName(e.placeId))}, ${istHHMM(e.startAt)}. Leaving around <b>${istHHMM(at)}</b>. Starting from?`, placeGrid("w:from", { skip: e.placeId }));
+        }
       } else if (b === "to" && c === OPEN.id) {
         await updateUser(ctx.db, user.id, { botState: { ...w, to: OPEN.id, step: "range" } satisfies Wizard });
         await say(
@@ -412,6 +429,8 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       } else if (b === "to") {
         await updateUser(ctx.db, user.id, { botState: { ...w, to: c, step: "from" } });
         await say(ctx, chatId, `To <b>${placeName(c)}</b>. Starting from?`, placeGrid("w:from", { skip: c }));
+      } else if (b === "from" && w.at) {
+        await afterTime(ctx, chatId, user, { ...w, from: c }); // an event already set the time
       } else if (b === "from") {
         await updateUser(ctx.db, user.id, { botState: { ...w, from: c, step: "time" } });
         await say(ctx, chatId, "Around when? Tap one, or type a time like <b>4:30pm</b>. (Earlier plans earn more kaju!)", TIME_BUTTONS);
@@ -430,7 +449,9 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       const r = await confirmRide(ctx.db, ctx.n, user, Number(b), c === "y", ctx.now);
       toast = r.already
         ? "Already sorted, thanks!"
-        : r.done
+        : "waiting" in r && r.waiting
+          ? "Thanks! One of you is new here, so I'll pay out once the other says it happened too."
+          : r.done
           ? r.capped ? "Ride counted! (You two have had today's kaju for rides together already.)" : "Kaju delivered! 🥜"
           : "Okay, noted. If the other person says it happened, it still counts.";
     } else if (a === "cxr") {

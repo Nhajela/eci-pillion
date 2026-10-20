@@ -73,7 +73,7 @@ describe("a day in Pillion", () => {
     expect(r2.status).toBe("cancelled");
   });
 
-  it("floaters get pinged, and floating pays by the quarter hour", async () => {
+  it("floaters get pinged, and floating pays by the half hour", async () => {
     const db = await testDb();
     const n = notifier();
     const floater = await person(db, "Kabir", "scooty");
@@ -85,7 +85,7 @@ describe("a day in Pillion", () => {
     const ride = await takeRequest(db, n, floater, req.plan.id, at(2));
     expect(ride.viaFloat).toBe(true);
     const res = await stopFloat(db, n, floater, at(95));
-    expect(res).toMatchObject({ minutes: 95, got: 30 });
+    expect(res).toMatchObject({ minutes: 95, got: 15 }); // 3 full half hours × 5
   });
 
   it("cars offer several seats and each passenger is a ride", async () => {
