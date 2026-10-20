@@ -96,7 +96,7 @@ export default async function Board() {
         )}
 
         <section className="card invite-cta">
-          <h2>💌 More people, more rides</h2>
+          <h2>💌 Bring everyone</h2>
           <p>Every person who joins makes a match likelier for everyone. Invite a friend: +{KAJU.inviteJoin} kaju when they sign up, +{KAJU.inviteRide} when they take their first ride.</p>
           {user ? <a className="btn small" href="/home#invite">Invite friends</a> : bot ? <a className="btn small" href={`https://t.me/${bot}?start=board`}>Join on Telegram</a> : null}
         </section>

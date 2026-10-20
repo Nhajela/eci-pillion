@@ -7,7 +7,7 @@ import { allPlaces, destName, ERRAND, located, minutesFor, OPEN, placeById, plac
 import { istHHMM, istTimeToday } from "@/lib/time";
 import { balance, history, REASON_LABEL } from "@/services/kaju";
 import { claimLogin, magicCode } from "@/services/login";
-import { cancelPlan, createPlan, GameError } from "@/services/plans";
+import { cancelPlan, createPlan, GameError, openPlans } from "@/services/plans";
 import { cancelRide, confirmRide, hopOn, myRides, takeRequest } from "@/services/rides";
 import { locate, refuseRequest, stillHere, stopFloat } from "@/services/floats";
 import { finishOnboarding, getUser, updateUser, upsertTelegramUser, type TgUser } from "@/services/users";
@@ -37,11 +37,12 @@ type Reporting = { report: ReportKind };
 const isWizard = (s: unknown): s is Wizard => Boolean(s && typeof s === "object" && "step" in s);
 const isReporting = (s: unknown): s is Reporting => Boolean(s && typeof s === "object" && "report" in s);
 
+// Everything happens here in the chat; the website is optional (/web).
 const MENU: Button[][] = [
-  [{ text: "🛵 I'm going somewhere", data: "menu:offer" }, { text: "🙋 I need a ride", data: "menu:request" }],
+  [{ text: "🙋 I need a ride", data: "menu:request" }, { text: "🛵 I'm going somewhere", data: "menu:offer" }],
+  [{ text: "🛣️ Who's going where", data: "menu:road" }],
   [{ text: "🌴 Float", data: "menu:float" }, { text: "📋 My rides", data: "menu:mine" }],
-  [{ text: "🥜 Kaju", data: "menu:kaju" }, { text: "🌐 Open Pillion", data: "menu:web" }],
-  [{ text: "💌 Invite friends", data: "menu:invite" }, { text: "🏘️ Village board", data: "menu:board" }],
+  [{ text: "🥜 Kaju", data: "menu:kaju" }, { text: "💌 Invite friends", data: "menu:invite" }],
   [{ text: "🐞 Report a bug", data: "menu:bug" }, { text: "💡 Suggest an idea", data: "menu:feature" }],
 ];
 
@@ -270,7 +271,9 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
       return say(ctx, chatId, `Your ${isAdmin(user) ? "admin" : "staff"} dashboard (link works once, for 30 minutes):`, [[{ text: "📊 Open dashboard", url: await webLink(ctx, user, path) }]]);
     }
     case "/invite": return invite(ctx, chatId, user, rest.join(" "));
-    case "/board": return say(ctx, chatId, "🏘️ The village board: every ride that happened, who's asking right now, and the leaders.", [[{ text: "Open the board", url: `${env.origin()}/board` }]]);
+    case "/road":
+    case "/now":
+    case "/board": return road(ctx, chatId, user);
     case "/help": return say(ctx, chatId, HELP.replace("PILLION_ORIGIN", env.origin()), MENU);
     case "/name": {
       const name = rest.join(" ").trim().slice(0, 32);
@@ -300,12 +303,39 @@ const HELP = [
   "/ride: I need a ride (or a quick errand and back)",
   "/float: how floating works · /stop: stop floating",
   "/mine: my plans and rides · /kaju: my kaju",
-  "/wheels: change vehicle · /name: change name · /web: open the site",
+  "/road: who's going where (take someone, or hop on)",
+  "/wheels: change vehicle · /name: change name",
+  "/web: the same on a bigger screen (optional)",
   "/bug what broke · /feature what you wish it did",
-  "/invite: bring a friend (kaju!) · /board: the village board",
+  "/invite: bring friends: more people, more rides for everyone",
   "",
   "The whole explainer: PILLION_ORIGIN/how-it-works",
 ].join("\n");
+
+/** Who's going where, right here in the chat: people asking (take them) and seats going (hop on). */
+async function road(ctx: Ctx, chatId: number, user: User) {
+  const open = (await openPlans(ctx.db, ctx.now)).filter((o) => o.user.id !== user.id);
+  const asks = open.filter((o) => o.plan.kind === "request").slice(0, 6);
+  const seats = open.filter((o) => o.plan.kind === "offer").slice(0, 6);
+  if (!asks.length && !seats.length) {
+    return say(ctx, chatId, "🛣️ Quiet lanes right now: nobody's asking and no seats are going.\n\nGoing somewhere later? Tell me now and someone can plan around you. And the more friends on Pillion, the more rides there are: /invite.", MENU);
+  }
+  const line = (o: (typeof open)[number]) => {
+    const p = o.plan;
+    const trip = tripLabel(p.fromPlace, p.toPlace, p.rangeKm);
+    return `<b>${istHHMM(p.departAt)}</b> ${esc(placeName(p.fromPlace))} → <b>${esc(destName(p.toPlace, p.note, p.rangeKm))}</b>${trip ? ` · ${trip}` : ""}`;
+  };
+  const text = [
+    "🛣️ <b>Who's going where</b>",
+    ...(asks.length ? ["", "🙋 <b>Asking for a ride</b>", ...asks.map((o) => `${esc(o.user.name)}: ${line(o)}`)] : []),
+    ...(seats.length ? ["", "🛵 <b>Seats going</b>", ...seats.map((o) => `${vehicleEmoji(o.user.vehicle)} ${esc(o.user.name)}: ${line(o)} · ${o.plan.seats} seat${o.plan.seats > 1 ? "s" : ""}`)] : []),
+  ].join("\n");
+  const buttons: Button[][] = [
+    ...(user.vehicle !== "none" ? asks.map((o) => [{ text: `🛵 Take ${o.user.name} (${istHHMM(o.plan.departAt)})`, data: `take:${o.plan.id}` }]) : []),
+    ...seats.map((o) => [{ text: `🙋 Hop on with ${o.user.name} (${istHHMM(o.plan.departAt)})`, data: `hop:${o.plan.id}` }]),
+  ];
+  return say(ctx, chatId, text, buttons);
+}
 
 async function invite(ctx: Ctx, chatId: number, user: User, arg: string) {
   if (arg.trim()) {
@@ -325,7 +355,7 @@ async function invite(ctx: Ctx, chatId: number, user: User, arg: string) {
   const waiting = mine.waiting.length ? `\n<i>Invited, not joined yet: ${mine.waiting.map((u) => `@${esc(u)}`).join(", ")}</i>` : "";
   return say(
     ctx, chatId,
-    `💌 <b>Bring a friend.</b> More people means more rides for everyone.\n\nYour link: ${link}\n\n+${KAJU.inviteJoin} kaju when they sign up, +${KAJU.inviteRide} when they take their first ride. Or send <code>/invite @their_username</code>: it counts even if they join without the link.${status}${waiting}`,
+    `💌 <b>Bring everyone.</b> Pillion works when lots of us are on it: every person who joins makes a ride likelier for you too. Send this to your housemates, your residency group, your table at dinner.\n\nYour link: ${link}\n\n+${KAJU.inviteJoin} kaju when they sign up, +${KAJU.inviteRide} when they take their first ride. Or send <code>/invite @their_username</code>: it counts even if they join without the link.${status}${waiting}`,
     [[{ text: "📤 Share my link", url: shareUrl(link) }]],
   );
 }
@@ -382,8 +412,11 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       else if (b === "mine") await mine(ctx, chatId, user);
       else if (b === "kaju") await kajuInfo(ctx, chatId, user);
       else if (b === "invite") await invite(ctx, chatId, user, "");
-      else if (b === "board") await say(ctx, chatId, "🏘️ The village board:", [[{ text: "Open the board", url: `${env.origin()}/board` }]]);
-      else if (b === "later") await menu(ctx, chatId, user, `All set! How it works, in full: ${env.origin()}/how-it-works`);
+      else if (b === "board" || b === "road") await road(ctx, chatId, user);
+      else if (b === "later") {
+        await menu(ctx, chatId, user, "All set! Everything happens right here in this chat: tap a button below, any time.");
+        await say(ctx, chatId, `💌 One favour: Pillion works when lots of us are on it. Every friend who joins makes a ride likelier for you too.`, [[{ text: "📤 Send my invite link", url: shareUrl(await inviteLink(ctx.db, user)) }]]);
+      }
       else if (b === "web") await say(ctx, chatId, "Here you go (works once, for 30 minutes):", [[{ text: "🌐 Open Pillion", url: await webLink(ctx, user) }]]);
       else if (b === "bug" || b === "feature") {
         await updateUser(ctx.db, user.id, { botState: { report: b } satisfies Reporting });

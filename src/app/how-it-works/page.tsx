@@ -76,7 +76,7 @@ export default async function HowItWorks() {
         <h1>Spare seats, finding people.</h1>
         <p className="sub">
           Pillion is the village sharing rides: people with a scooty or a car say where they&apos;re going, people without
-          one hop on, and people with nowhere to be float around and pick folks up. It all happens in a Telegram bot,
+          one hop on, and people with nowhere to be float around and pick folks up. It all happens in a Telegram chat (the website is optional),
           and it&apos;s a game: everything earns <b>kaju</b>.
         </p>
         <nav className="toc" aria-label="On this page">
@@ -98,7 +98,8 @@ export default async function HowItWorks() {
           <li><b>Open the bot.</b> {live ? <a href={`https://t.me/${bot}`}>@{bot}</a> : "The Pillion bot"} on Telegram, and press <b>Start</b>.</li>
           <li><b>Step 1: what do you ride?</b> 🛵 Scooty, 🏍️ bike, 🚗 car (say how many seats) or 🚶 no wheels. A scooty or bike carries exactly one pillion. You get {KAJU.signup} kaju for joining.</li>
           <li><b>Step 2: draw yourself.</b> The bot sends a link: scribble a face (badly is fine) and pick your scooty colour. It&apos;s you on the village map and next to your rides. You can skip it and come back.</li>
-          <li><b>That&apos;s it.</b> The menu has everything: going somewhere, need a ride, float, my rides, kaju. The website (/web in the bot) shows the same things with bigger buttons.</li>
+          <li><b>That&apos;s it.</b> Everything happens in the chat: the bot&apos;s menu has I need a ride, I&apos;m going somewhere, who&apos;s going where, float, my rides and kaju. You never need the website; /web opens it if you like a bigger screen.</li>
+          <li><b>Bring everyone.</b> Pillion works when lots of us are on it. /invite gives you a link to send your housemates and your residency group.</li>
         </ol>
         <p className="hint">Set a Telegram username (Settings → Username) so the people you ride with can message you to sort the pickup.</p>
       </section>
@@ -162,7 +163,7 @@ export default async function HowItWorks() {
 
       <section id="invites" aria-labelledby="invites-h">
         <h2 id="invites-h">Invites: bring a friend</h2>
-        <p className="lede">Every person who joins makes a match likelier for everyone, so bringing people in pays.</p>
+        <p className="lede">Pillion only works with lots of people on it: every pilot, hitcher and floater who joins makes a ride likelier for everyone else. So bring everyone: your housemates, your residency, your table at dinner. It pays, too.</p>
         <ol className="steps">
           <li><b>Share your link.</b> /invite in the bot (or the 💌 card on the site) gives you a personal link that opens the bot. Anyone who signs up through it is yours: +{KAJU.inviteJoin} kaju.</li>
           <li><b>Or name them.</b> <code>/invite @their_username</code> saves the invite. When that Telegram account signs up, link or not, it counts. One invite per person, ever: the first one to invite them gets it.</li>

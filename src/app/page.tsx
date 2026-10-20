@@ -93,19 +93,19 @@ export default async function Home() {
           <h1>Your scooty has a lonely back seat.</h1>
           <p className="sub">
             Pillion matches people with scooties (and a few cars) to people without them, all over the village.
-            Rides earn kaju. Nobody&apos;s late to dinner.
+            It all happens in a Telegram chat: tell the bot where you&apos;re going, and it finds you a ride or a rider.
           </p>
           <div className="hero-ctas">
             {user ? (
               <a className="btn" href="/home">Open my Pillion</a>
             ) : live ? (
-              <a className="btn" href="/login">Join on Telegram</a>
+              <a className="btn" href={`https://t.me/${env.botUsername()}`}>Start on Telegram</a>
             ) : (
               <a className="btn" href="#how">Meet the three roles</a>
             )}
             <a className="btn ghost" href="/how-it-works">How it works</a>
           </div>
-          {live && !user && <p className="hint">Or say hi to <a href={`https://t.me/${env.botUsername()}`}>@{env.botUsername()}</a> directly.</p>}
+          {live && !user && <p className="hint">Opens <b>@{env.botUsername()}</b>. No app, no password. Already in? <a href="/login">Log in on the web</a>.</p>}
         </div>
       </header>
 
@@ -136,6 +136,7 @@ export default async function Home() {
             <li>Riva and the Circle are the hubs. Any stay, café or tonight&apos;s dinner can be a destination: just type it.</li>
             <li>Need to pop to a shop nearby and come back? Ask for a quick errand; a floater close by takes you.</li>
             <li>Scooties carry one pillion, cars up to six.</li>
+            <li><b>It works when lots of us are on it.</b> Every person who joins makes a ride likelier for everyone else. Bring your housemates, your residency, your table at dinner.</li>
           </ul>
           <p>Some things will break. Please tell us when they do, and tell us what you wish it did.</p>
           <div className="beta-ctas">

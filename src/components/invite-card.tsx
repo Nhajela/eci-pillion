@@ -14,8 +14,8 @@ export function InviteCard({ link, share, joined, waiting, join, ride }: {
   const [busy, setBusy] = useState(false);
   return (
     <section className="card invite-cta" id="invite">
-      <h2>💌 Bring a friend</h2>
-      <p>More people means more rides for everyone. +{join} kaju when a friend signs up, +{ride} when they take their first ride.</p>
+      <h2>💌 Bring everyone</h2>
+      <p>Pillion works when lots of us are on it: every person who joins makes a ride likelier for you too. Send your link to your housemates, your residency group, your table at dinner. +{join} kaju when a friend signs up, +{ride} when they take their first ride.</p>
       <div className="invite-row">
         <span className="invite-link">{link}</span>
         <button type="button" className="btn small ghost" onClick={async () => { await navigator.clipboard?.writeText(link); setCopied(true); }}>{copied ? "Copied ✓" : "Copy"}</button>

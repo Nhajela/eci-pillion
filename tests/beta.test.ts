@@ -209,3 +209,22 @@ describe("merging places", () => {
     expect(placeById(c.id)?.lat).toBe(15.666); // c had no pin: it takes b's
   });
 });
+
+describe("bot-first", () => {
+  it("/road lists asks and seats with Take / Hop on buttons, right in the chat", async () => {
+    const db = await testDb();
+    const n = notifier();
+    const asha = await person(db, "Asha", "scooty");
+    const ben = await person(db, "Ben");
+    const cleo = await person(db, "Cleo", "car");
+    const ask = await createPlan(db, n, ben, { kind: "request", fromPlace: "riva", toPlace: "arambol", departAt: at(60) }, T0);
+    const seat = await createPlan(db, n, cleo, { kind: "offer", fromPlace: "circle", toPlace: "riva", departAt: at(90) }, T0);
+    const tg = fakeTelegram();
+    await handleUpdate({ db, call: tg.call, n, now: T0 }, msg(asha.telegramId, "/road"));
+    const last = tg.texts().at(-1)!;
+    expect(last).toContain("Who's going where");
+    expect(last).toContain("Ben");
+    expect(last).toContain("≈2.5 km");
+    expect(tg.buttons()).toEqual(expect.arrayContaining([`take:${ask.plan.id}`, `hop:${seat.plan.id}`]));
+  });
+});

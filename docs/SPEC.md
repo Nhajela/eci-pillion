@@ -152,3 +152,10 @@ until there's activity), /home, /today and the explainer.
   time chips plus a native time picker; a − / + seat stepper for cars; a summary with the kaju before posting.
 - **Place aliases** (`PLACE_ALIASES` in `services/places.ts`): Chique Shanti Villa is the Community Builders Residency.
   The event sync merges an alias into its main place once, and new events there land on the main place.
+
+## Release 11 (20 Oct): bot-first, bring everyone
+- The bot is the app: menu = I need a ride · I'm going somewhere · 🛣️ Who's going where (`/road`, also `/now`, `/board`:
+  open asks with Take buttons, seats with Hop on, distances) · Float · My rides · Kaju · Invite · Bug / Idea. The website
+  is optional (`/web`). The landing page's main button opens the bot.
+- Copy asks people to bring others ("Pillion works when lots of us are on it"): landing beta box, /how-it-works,
+  /home invite card, the board, `/invite`, and right after sign-up (a share button for your invite link).
