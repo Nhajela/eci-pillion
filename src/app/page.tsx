@@ -232,6 +232,20 @@ export default async function Home() {
         </ol>
       </section>
 
+      <section className="open-source" aria-labelledby="oss-h">
+        <div className="oss-card">
+          <h2 id="oss-h">Built in the open. Come build it with us.</h2>
+          <p>
+            Pillion is a village experiment, and so is its code. It&apos;s all on GitHub: the game rules, the bot, this page.
+            Got an idea? Say <b>/feature</b> in the bot. Can code, design or write? Pick something up and send a pull request.
+          </p>
+          <div className="beta-ctas">
+            <a className="btn small" href="https://github.com/Nhajela/eci-pillion">⭐ Pillion on GitHub</a>
+            <a className="btn small ghost" href="https://github.com/Nhajela/eci-pillion/blob/main/CONTRIBUTING.md">How to contribute</a>
+          </div>
+        </div>
+      </section>
+
       <section className="faq" aria-labelledby="faq-h">
         <h2 id="faq-h">Questions people have asked us at the chai stall</h2>
         {FAQ.map(([q, a]) => (
@@ -243,7 +257,7 @@ export default async function Home() {
       </section>
 
       <footer>
-        <p>Made in Mandrem, with one spare seat and a bag of cashews. <a href="/how-it-works">How it works</a></p>
+        <p>Made in Mandrem, with one spare seat and a bag of cashews. <a href="/how-it-works">How it works</a> · <a href="https://github.com/Nhajela/eci-pillion">GitHub</a></p>
         <p className="fine">Pillion <span className="beta-pill">beta</span> · an experiment in sharing rides · Edge City India 2026</p>
       </footer>
     </main>
