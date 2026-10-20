@@ -113,6 +113,11 @@ export const cleanName = (s: string, max = 40) => s.replace(/[<>&]/g, "").replac
  */
 export async function mergePlace(db: Db, admin: User, fromId: string, intoId: string) {
   requireAdmin(admin);
+  return mergeInto(db, fromId, intoId);
+}
+
+/** The merge itself (no permission check): for admins above, and for known aliases below. */
+async function mergeInto(db: Db, fromId: string, intoId: string) {
   await loadPlaces(db, true);
   const from = everyPlace().find((p) => p.id === fromId);
   const into = everyPlace().find((p) => p.id === intoId);
@@ -131,6 +136,34 @@ export async function mergePlace(db: Db, admin: User, fromId: string, intoId: st
   if (!located(into) && located(from)) await upsertRow(db, intoId, { lat: from.lat, lng: from.lng });
   await loadPlaces(db, true);
   return { moved };
+}
+
+/**
+ * Places known to be the same thing under two names (Naman, 20 Oct: Chique Shanti Villa is where the Community Builders
+ * Residency is). Applied by the event sync: if both exist, the alias is merged into the main place.
+ */
+export const PLACE_ALIASES: Record<string, string> = {
+  "Chique Shanti Villa": "Community Builders Residency",
+};
+
+/** The name to use for a place called `name`: the main name if it's a known alias. */
+export const canonicalName = (name: string) =>
+  Object.entries(PLACE_ALIASES).find(([alias]) => looseName(alias) === looseName(name))?.[1] ?? name;
+
+/** Merge any alias that exists as its own place into its main place. Idempotent. */
+export async function applyAliases(db: Db) {
+  await loadPlaces(db);
+  let merged = 0;
+  for (const [alias, main] of Object.entries(PLACE_ALIASES)) {
+    const from = everyPlace().find((p) => !p.mergedInto && looseName(p.name) === looseName(alias));
+    if (!from) continue;
+    const into = findPlace(main) ?? (await findOrAddPlace(db, null, main, located(from) ? from : null)).place;
+    if (into.id !== from.id) {
+      await mergeInto(db, from.id, into.id);
+      merged++;
+    }
+  }
+  return merged;
 }
 
 /** Parse "15.67, 73.71" or a Google Maps link with @lat,lng or ?q=lat,lng. */

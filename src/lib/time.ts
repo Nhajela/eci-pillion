@@ -10,6 +10,11 @@ export function istHHMM(d: Date) {
 }
 
 /** IST calendar day as YYYY-MM-DD. */
+/** "18:45" in IST, for <input type="time">. */
+export function ist24(d: Date) {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+}
+
 export function istDay(d: Date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }

@@ -143,3 +143,12 @@ until there's activity), /home, /today and the explainer.
   ignores rides with the inviter; role `blocked` (admin-set) can't post, take, hop, float or earn; the dashboard's
   "Worth a look" lists pairs with ≥ 3 rides together, ≥ 3 invited sign-ups in 24 h, and accounts < 48 h old with ≥ 2 rides.
 - **Float pay**: +10 an hour (5 per full half hour), was +20.
+
+## Release 10 (20 Oct)
+- **/home redesigned for phones**: what needs you first (confirm rides, your plans), then the plan form, then what's on
+  the road (each ride a card, its button full width), float, invites, kaju, the village numbers last.
+- **Plan form**: big "I need a ride / I'm going" choice; From and To as big rows that open a searchable bottom sheet
+  (`components/place-picker.tsx`: special options, hubs, events coming up, everywhere else by use, "➕ Add …"); ⇅ swap;
+  time chips plus a native time picker; a − / + seat stepper for cars; a summary with the kaju before posting.
+- **Place aliases** (`PLACE_ALIASES` in `services/places.ts`): Chique Shanti Villa is the Community Builders Residency.
+  The event sync merges an alias into its main place once, and new events there land on the main place.

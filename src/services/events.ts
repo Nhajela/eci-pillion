@@ -2,7 +2,7 @@ import { and, asc, gt, isNotNull, lt } from "drizzle-orm";
 import type { Db } from "@/db";
 import { edgeEvents } from "@/db/schema";
 import { looseName } from "@/lib/places";
-import { findOrAddPlace, findPlace, loadPlaces } from "./places";
+import { applyAliases, canonicalName, findOrAddPlace, findPlace } from "./places";
 
 // Today's Edge City events (EdgeOS, read-only key in EDGEOS_KEY) as ride destinations: "the 7pm talk at Riva".
 
@@ -59,13 +59,14 @@ export async function syncEvents(db: Db, now: Date, f: Fetch = fetch) {
     }),
     get<{ results: EosVenue[] }>(f, "/event-venues/portal/venues", { popup_id: popup.id, limit: "100" }),
   ]);
-  await loadPlaces(db);
+  await applyAliases(db);
   let n = 0;
   for (const e of events.results) {
     if (e.visibility !== "public") continue;
     const venue = (e.venue_id ? venues.results.find((v) => v.id === e.venue_id)?.title : e.custom_location_name) ?? null;
     let placeId: string | null = null;
-    const name = venue ? venueToName(venue) : null;
+    const raw = venue ? venueToName(venue) : null;
+    const name = raw ? canonicalName(raw) : null;
     if (name) placeId = (findPlace(name) ?? (await findOrAddPlace(db, null, name, null, "spot")).place).id;
     const row = { title: e.title.replace(/[<>&]/g, "").slice(0, 120), startAt: new Date(e.start_time), endAt: new Date(e.end_time), venue, placeId, syncedAt: now };
     await db.insert(edgeEvents).values({ id: e.id, ...row }).onConflictDoUpdate({ target: edgeEvents.id, set: row });

@@ -130,3 +130,20 @@ describe("venue names", () => {
     expect(venueToName("Anima House")).toBe("Anima House");
   });
 });
+
+describe("place aliases", () => {
+  it("Chique Shanti Villa merges into Community Builders Residency, and new events there land on the residency", async () => {
+    const db = await testDb();
+    const n = notifier();
+    const { findOrAddPlace, applyAliases, findPlace } = await import("@/services/places");
+    const villa = (await findOrAddPlace(db, null, "Chique Shanti Villa", null)).place;
+    const cbr = (await findOrAddPlace(db, null, "Community Builders Residency", null)).place;
+    const h = await old(db, "Hal");
+    const p = await createPlan(db, n, h, { kind: "request", fromPlace: "riva", toPlace: villa.id, departAt: at(60) }, T0);
+    expect(await applyAliases(db)).toBe(1);
+    expect(await applyAliases(db)).toBe(0); // once
+    const { plans } = await import("@/db/schema");
+    expect((await db.select().from(plans).where(eq(plans.id, p.plan.id)))[0].toPlace).toBe(cbr.id);
+    expect(findPlace("chique shanti villa")?.id).toBe(cbr.id);
+  });
+});

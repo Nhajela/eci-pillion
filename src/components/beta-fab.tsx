@@ -30,7 +30,7 @@ export function BetaFab({ loggedIn, bot }: { loggedIn: boolean; bot: string }) {
 
   return (
     <>
-      <button type="button" className="beta-fab" aria-expanded={open} aria-controls="beta-sheet" onClick={() => setOpen(!open)}>
+      <button type="button" className="beta-fab" aria-label="Beta: report a bug or suggest an idea" aria-expanded={open} aria-controls="beta-sheet" onClick={() => setOpen(!open)}>
         <span aria-hidden>🧪</span> Beta · feedback
       </button>
       {open && (
