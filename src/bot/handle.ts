@@ -14,7 +14,7 @@ import { finishOnboarding, getUser, updateUser, upsertTelegramUser, type TgUser 
 import { findOrAddPlace, loadPlaces, pinPlace } from "@/services/places";
 import { fileReport, type ReportKind } from "@/services/reports";
 import { isAdmin, isStaff } from "@/services/roles";
-import { esc, keyboard, type Button, type Call, type Notifier } from "./telegram";
+import { esc, gifUrl, send, type Button, type Call, type Gif, type Notifier } from "./telegram";
 
 type Msg = { chat: { id: number; type: string }; from?: TgUser; text?: string; edit_date?: number; location?: { latitude: number; longitude: number; live_period?: number } };
 export type Update = {
@@ -85,8 +85,8 @@ async function isVillager(call: Call, tgId: number) {
   return false;
 }
 
-async function say(ctx: Ctx, chatId: number, text: string, buttons?: Button[][]) {
-  await ctx.call("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", reply_markup: keyboard(buttons), link_preview_options: { is_disabled: true } });
+async function say(ctx: Ctx, chatId: number, text: string, buttons?: Button[][], gif?: Gif) {
+  await send(ctx.call, chatId, text, { buttons, animation: gif ? gifUrl(gif) : undefined });
 }
 
 async function webLink(ctx: Ctx, user: User, path = "/home") {
@@ -95,9 +95,11 @@ async function webLink(ctx: Ctx, user: User, path = "/home") {
 }
 
 async function welcome(ctx: Ctx, chatId: number, user: User) {
-  await say(ctx, chatId, `Hi <b>${esc(user.name)}</b>! 🛵 Welcome to <b>Pillion</b>, where spare back seats find people.\n\nFirst: what do you ride?`, [
-    ...VEHICLE_BUTTONS,
-  ]);
+  await say(
+    ctx, chatId,
+    `Hi <b>${esc(user.name)}</b>! 🛵 Welcome to <b>Pillion</b>, where spare back seats find people. (It's a beta: an experiment in sharing rides. /bug tells us when something's off.)\n\n<b>Step 1 of 2:</b> what do you ride?`,
+    VEHICLE_BUTTONS, "welcome",
+  );
 }
 
 async function menu(ctx: Ctx, chatId: number, user: User, lead = "What's the plan?") {
@@ -211,7 +213,7 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
     if ("noWheels" in res) return say(ctx, chatId, "Floating is for people with wheels, so you can pick folks up. Got some? Tell me with /wheels.");
     if ("outside" in res && !m.edit_date) return say(ctx, chatId, "That's outside the village map, so it doesn't count as floating. Come back to Mandrem and share again! 🌴");
     if (res.started) {
-      await say(ctx, chatId, `🌴 You're floating near <b>${res.near}</b>${live ? "" : " for the next hour (share a <b>live</b> location to float longer)"}. I'll ping you when someone nearby needs a ride.\n<i>Floaters say yes: turning down a request ends your float and costs 10 kaju. Not free any more? /stop first, no penalty.</i>`);
+      await say(ctx, chatId, `🌴 You're floating near <b>${esc(res.near)}</b>${live ? "" : " for the next hour (share a <b>live</b> location to float longer)"}. I'll ping you when someone nearby needs a ride.\n<i>Floaters say yes: turning down a request ends your float and costs 10 kaju. Not free any more? /stop first, no penalty.</i>`, undefined, "float");
     }
     return;
   }
@@ -252,7 +254,7 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
       const path = isAdmin(user) ? "/admin" : "/staff";
       return say(ctx, chatId, `Your ${isAdmin(user) ? "admin" : "staff"} dashboard (link works once, for 30 minutes):`, [[{ text: "📊 Open dashboard", url: await webLink(ctx, user, path) }]]);
     }
-    case "/help": return say(ctx, chatId, HELP, MENU);
+    case "/help": return say(ctx, chatId, HELP.replace("PILLION_ORIGIN", env.origin()), MENU);
     case "/name": {
       const name = rest.join(" ").trim().slice(0, 32);
       if (!name) return say(ctx, chatId, "Send <b>/name</b> followed by what the village should call you.");
@@ -283,6 +285,8 @@ const HELP = [
   "/mine: my plans and rides · /kaju: my kaju",
   "/wheels: change vehicle · /name: change name · /web: open the site",
   "/bug what broke · /feature what you wish it did",
+  "",
+  "The whole explainer: PILLION_ORIGIN/how-it-works",
 ].join("\n");
 
 async function report(ctx: Ctx, chatId: number, user: User, kind: ReportKind, text: string) {
@@ -335,6 +339,7 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
       else if (b === "float") await say(ctx, chatId, FLOAT_HELP);
       else if (b === "mine") await mine(ctx, chatId, user);
       else if (b === "kaju") await kajuInfo(ctx, chatId, user);
+      else if (b === "later") await menu(ctx, chatId, user, `All set! How it works, in full: ${env.origin()}/how-it-works`);
       else if (b === "web") await say(ctx, chatId, "Here you go (works once, for 30 minutes):", [[{ text: "🌐 Open Pillion", url: await webLink(ctx, user) }]]);
       else if (b === "bug" || b === "feature") {
         await updateUser(ctx.db, user.id, { botState: { report: b } satisfies Reporting });
@@ -402,15 +407,14 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
 
 async function onboarded(ctx: Ctx, chatId: number, user: User) {
   const got = await finishOnboarding(ctx.db, user.id, ctx.now);
-  const link = await webLink(ctx, user, "/avatar");
+  const link = await webLink(ctx, user, "/avatar?welcome=1");
   if (!user.username) {
     await say(ctx, chatId, "Tip: set a Telegram <b>username</b> (Settings → Username) so the people you ride with can message you to sort the pickup.");
   }
   await say(
     ctx,
     chatId,
-    `You're in! ${got ? `+${got} kaju. 🥜` : ""}\n\nNext: draw yourself so you can scoot around the village map.`,
-    [[{ text: "🎨 Draw my avatar", url: link }]],
+    `You're in! ${got ? `+${got} kaju. 🥜` : ""}\n\n<b>Step 2 of 2:</b> draw yourself (badly is fine). It's you on the village map and next to your rides. Takes a minute.`,
+    [[{ text: "🎨 Draw my avatar", url: link }], [{ text: "Later, show me the menu", data: "menu:later" }]],
   );
-  await menu(ctx, chatId, user, "Whenever you're ready:");
 }

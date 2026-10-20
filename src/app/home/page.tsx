@@ -48,6 +48,14 @@ export default async function Home() {
       <main className="app">
         <h1>Hey {user.name} 👋</h1>
 
+        {!user.avatar && (
+          <section className="card onboard-card">
+            <h2>One last step: draw yourself</h2>
+            <p>It&apos;s you on the village map and next to your rides, so people know who&apos;s picking them up. A minute, and badly is fine.</p>
+            <a className="btn small" href="/avatar?welcome=1">🎨 Draw my avatar</a>
+          </section>
+        )}
+
         {toConfirm.length > 0 && (
           <section className="card attention">
             <h2>Did these happen?</h2>
