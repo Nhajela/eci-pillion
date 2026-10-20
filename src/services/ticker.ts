@@ -10,6 +10,7 @@ import { expireRides } from "./rides";
 import { expirePlans } from "./plans";
 import { loadPlaces } from "./places";
 import { syncEvents } from "./events";
+import { followUpAsks } from "./followups";
 import { awardWinners, computeWinners, namesFor, PRIZE_KAJU, PRIZES, PRIZES_ON } from "./prizes";
 
 export { once } from "./once";
@@ -24,6 +25,7 @@ export async function tick(db: Db, n: Notifier, now: Date) {
   await closeExpiredFloats(db, n, now);
   await expirePlans(db, now);
   await expireRides(db, now);
+  await followUpAsks(db, n, now);
 
   // 15 min heads-up for matched rides
   // (not for rides matched in the last 5 minutes: they've only just heard about it)

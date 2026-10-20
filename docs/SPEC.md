@@ -159,3 +159,10 @@ until there's activity), /home, /today and the explainer.
   is optional (`/web`). The landing page's main button opens the bot.
 - Copy asks people to bring others ("Pillion works when lots of us are on it"): landing beta box, /how-it-works,
   /home invite card, the board, `/invite`, and right after sign-up (a share button for your invite link).
+
+## Follow-up for asks nobody took (release 12)
+`services/followups.ts`, run by the ticker, once per ask (`sent_keys followup:<id>`), 07:00–22:00 IST: an ask open ≥ 10 min,
+leaving within 2 h, with no ride, gets (1) pilots with offers ±90 min going within 1.5 km of the destination (open asks:
+pickups within 4 km), skipping those normal matching already pinged; (2) floaters within 6 km not already pinged (no
+refusal penalty: outside their radius); (3) up to 8 people with wheels, not floating, not busy then, active this week,
+at most 2 such nudges per person per IST day. All get an "I'll take them" button.

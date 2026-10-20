@@ -124,6 +124,7 @@ export default async function HowItWorks() {
           <ol className="steps">
             <li><b>Ask.</b> /ride (or “I need a ride”): where to, where from, when. The earlier you ask, the likelier a match, and the more kaju.</li>
             <li><b>Pilots going your way get pinged</b>, and so do floaters near you if it&apos;s within the hour. You hear the moment someone says yes.</li>
+            <li><b>Nobody yet after 10 minutes?</b> The bot asks a wider circle: pilots going nearby or a bit earlier or later, floaters a bit further away, and a few people with wheels who aren&apos;t floating (never more than two such nudges a day each, and never at night).</li>
             <li><b>Quick errand and back.</b> Need the pharmacy, the ATM or your laundry? Pick “🧺 Quick errand nearby &amp; back” and say what for. A floater near you takes you there and drops you back.</li>
             <li><b>Hop on someone&apos;s ride.</b> Offers going your way come to you as DMs with <b>Hop on</b>, and they&apos;re on the board.</li>
           </ol>
