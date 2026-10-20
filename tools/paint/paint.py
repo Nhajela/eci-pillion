@@ -59,6 +59,30 @@ SUBJECTS = {
         "A little festive table under string lights piled with small tangible village prizes: "
         "a coconut with a straw, a jar of cashews, a tiny trophy shaped like a scooter, a "
         "bunch of marigolds, a cold drink, a hand-made medal on a ribbon. Plain cream background."),
+    # GIF parts (tools/paint/gifs.py animates them). Backgrounds are empty stages; sprites sit on flat cream to be cut out.
+    "gif-lane": ("16:9",
+        "An empty red laterite village lane running left to right across the lower third, coconut palms, cashew "
+        "trees and whitewashed houses with terracotta roofs behind, golden hour sky. No people, no vehicles, no animals."),
+    "gif-beach": ("16:9",
+        "A calm Mandrem beach at late afternoon: soft sand in the lower third, gentle turquoise sea, two leaning coconut "
+        "palms, a sunny sky with a few round clouds. No people, no vehicles, no boats in front."),
+    "gif-night": ("16:9",
+        "A village courtyard at night under warm string lights and paper lanterns, a deep blue starry sky, palms "
+        "silhouetted, an empty sandy ground in the lower third. Festive and cosy. No people."),
+    "gif-pair": ("1:1",
+        "Side view, facing right: a cheerful rider on a mint-green scooter with a happy pillion passenger behind them, "
+        "both in helmets, the passenger's arms up in delight. Whole scooter visible. "
+        "Plain flat cream background all around, no shadow, nothing else."),
+    "gif-floater": ("1:1",
+        "Side view, facing right: a blissfully relaxed character with sunglasses cruising slowly on a pink scooter, "
+        "one hand lifted holding up a phone. Whole scooter visible. Plain flat cream background all around, no "
+        "shadow, no road, nothing else."),
+    "gif-car": ("1:1",
+        "Side view, facing right: a small rounded sunny-yellow hatchback with a smiling driver and two passengers "
+        "waving out of the open windows. Whole car visible. Plain flat cream background all around, no shadow, nothing else."),
+    "gif-coin": ("1:1",
+        "A single cute golden coin shaped like a cashew nut with a tiny smiling face, glossy gold with risograph grain. "
+        "Plain flat cream background all around, no shadow, nothing else, centered, filling half the frame."),
 }
 
 # Edits of a picture already in public/art: (source, aspect ratio, instruction). Output name is the key.

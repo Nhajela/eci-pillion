@@ -1,11 +1,32 @@
 // Thin Telegram Bot API client. fetchImpl is injectable so tests never call Telegram.
 export type Button = { text: string; data?: string; url?: string };
-export type Out = { to: number; text: string; buttons?: Button[][] };
+/** animation: a GIF moment (`gifUrl(...)`), sent with the text as its caption. */
+export type Out = { to: number; text: string; buttons?: Button[][]; animation?: string };
 
 export type Notifier = {
   dm(msg: Out): Promise<void>;
-  announce(text: string): Promise<void>;
+  announce(text: string, animation?: string): Promise<void>;
 };
+
+export type Gif = "welcome" | "matched" | "kaju" | "float" | "prizes";
+/** GIFs live in public/gifs and are served from this site. */
+export const gifUrl = (name: Gif) => `${(process.env.PUBLIC_ORIGIN ?? "https://pillion.housefulloflove.com").replace(/\/$/, "")}/gifs/${name}.gif`;
+
+const CAPTION_MAX = 1024;
+
+/** sendAnimation with the text as caption when there's a GIF and the text fits; plain text otherwise, or if Telegram
+ *  refuses the GIF. The words always go out. */
+export async function send(call: Call, chatId: number | string, text: string, opts: { buttons?: Button[][]; animation?: string } = {}) {
+  const reply_markup = keyboard(opts.buttons);
+  if (opts.animation && text.length <= CAPTION_MAX) {
+    try {
+      return await call("sendAnimation", { chat_id: chatId, animation: opts.animation, caption: text, parse_mode: "HTML", reply_markup });
+    } catch (e) {
+      console.error("sendAnimation failed, sending text only", (e as Error).message);
+    }
+  }
+  return call("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", reply_markup, link_preview_options: { is_disabled: true } });
+}
 
 export function telegram(token: string, fetchImpl: typeof fetch = fetch) {
   return async function call<T = unknown>(method: string, params: Record<string, unknown>): Promise<T> {
@@ -36,18 +57,15 @@ export function telegramNotifier(call: Call, announceChatId?: string): Notifier 
   return {
     async dm(m) {
       try {
-        await call("sendMessage", {
-          chat_id: m.to, text: m.text, parse_mode: "HTML", reply_markup: keyboard(m.buttons),
-          link_preview_options: { is_disabled: true },
-        });
+        await send(call, m.to, m.text, { buttons: m.buttons, animation: m.animation });
       } catch (e) {
         console.error("dm failed", m.to, (e as Error).message);
       }
     },
-    async announce(text) {
+    async announce(text, animation) {
       if (!announceChatId) return;
       try {
-        await call("sendMessage", { chat_id: announceChatId, text, parse_mode: "HTML" });
+        await send(call, announceChatId, text, { animation });
       } catch (e) {
         console.error("announce failed", (e as Error).message);
       }
@@ -59,10 +77,11 @@ export function telegramNotifier(call: Call, announceChatId?: string): Notifier 
 export function memoryNotifier() {
   const dms: Out[] = [];
   const announcements: string[] = [];
-  const n: Notifier & { dms: Out[]; announcements: string[] } = {
-    dms, announcements,
+  const gifs: string[] = [];
+  const n: Notifier & { dms: Out[]; announcements: string[]; gifs: string[] } = {
+    dms, announcements, gifs,
     async dm(m) { dms.push(m); },
-    async announce(t) { announcements.push(t); },
+    async announce(t, a) { announcements.push(t); if (a) gifs.push(a); },
   };
   return n;
 }

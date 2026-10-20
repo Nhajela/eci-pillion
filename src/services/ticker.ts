@@ -1,7 +1,7 @@
 import { and, eq, gt, gte, lt } from "drizzle-orm";
 import type { Db } from "@/db";
 import { rides, users } from "@/db/schema";
-import { esc, type Notifier } from "@/bot/telegram";
+import { esc, gifUrl, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { placeName } from "@/lib/places";
 import { istDay, istDayStart, istHHMM, istMinuteOfDay } from "@/lib/time";
@@ -62,5 +62,5 @@ export async function postPrizes(db: Db, n: Notifier, day: string, now: Date) {
   const riders = new Set(doneToday.flatMap((r) => [r.pilotId, r.hitcherId])).size;
   const lines = winners.map((w) => `🏅 <b>${PRIZES[w.prize].title}</b>: ${w.userIds.map((id) => esc(names.get(id) ?? "?")).join(", ")}`);
   if (!lines.length) return;
-  await n.announce(`${pick(LINES.dailyIntro, { riders, rides: doneToday.length })}\n\n${lines.join("\n")}\n\nEach winner gets +${PRIZE_KAJU} kaju.`);
+  await n.announce(`${pick(LINES.dailyIntro, { riders, rides: doneToday.length })}\n\n${lines.join("\n")}\n\nEach winner gets +${PRIZE_KAJU} kaju.`, gifUrl("prizes"));
 }

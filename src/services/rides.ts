@@ -1,7 +1,7 @@
 import { and, eq, gt, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { floatPings, floats, plans, rides, users, type Ride, type User } from "@/db/schema";
-import { esc, type Notifier } from "@/bot/telegram";
+import { esc, gifUrl, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { isLateCancel, KAJU, vehicleEmoji } from "@/lib/kaju";
 import { MATCH_WINDOW_MIN, offerFitsRequest } from "@/lib/match";
@@ -23,8 +23,8 @@ function matchedEffects(ride: Ride, pilot: User, hitcher: User): Effects {
   const time = istHHMM(ride.departAt);
   const cancel = [[{ text: "Can't make it", data: `cxr:${ride.id}` }]];
   return [
-    (n) => n.dm({ to: pilot.telegramId, text: `${vehicleEmoji(pilot.vehicle)} You're taking ${who(hitcher)} from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Say hi and sort the pickup spot.${pilot.vehicle === "car" ? "" : " Spare helmet?"}`, buttons: cancel }),
-    (n) => n.dm({ to: hitcher.telegramId, text: `💞 ${who(pilot)} ${pilot.vehicle === "car" ? "(by car 🚗) " : ""}is taking you from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Message them to sort the pickup spot.`, buttons: cancel }),
+    (n) => n.dm({ to: pilot.telegramId, text: `${vehicleEmoji(pilot.vehicle)} You're taking ${who(hitcher)} from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Say hi and sort the pickup spot.${pilot.vehicle === "car" ? "" : " Spare helmet?"}`, buttons: cancel, animation: gifUrl("matched") }),
+    (n) => n.dm({ to: hitcher.telegramId, text: `💞 ${who(pilot)} ${pilot.vehicle === "car" ? "(by car 🚗) " : ""}is taking you from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Message them to sort the pickup spot.`, buttons: cancel, animation: gifUrl("matched") }),
     (n) => n.announce(pick(LINES.match, { pilot: esc(pilot.name), hitcher: esc(hitcher.name), to, time })),
   ];
 }
@@ -186,7 +186,12 @@ export async function confirmRide(db: Db, n: Notifier, user: User, rideId: numbe
     const [p, h] = await loadUsers(tx, r.pilotId, r.hitcherId);
     return { already: null, done: true as const, p, h, pk, hk, capped };
   });
-  if (res.done && !res.capped) await n.announce(pick(LINES.rideDone, { pilot: esc(res.p.name), hitcher: esc(res.h.name), pilotKaju: res.pk, hitcherKaju: res.hk }));
+  if (res.done && !res.capped) {
+    // the kaju moment, for both of them
+    await n.dm({ to: res.p.telegramId, text: `🥜 Ride done with ${esc(res.h.name)}! +${res.pk} kaju for bringing the wheels.`, animation: gifUrl("kaju") });
+    await n.dm({ to: res.h.telegramId, text: `🥜 Ride done with ${esc(res.p.name)}! +${res.hk} kaju for the company.`, animation: gifUrl("kaju") });
+    await n.announce(pick(LINES.rideDone, { pilot: esc(res.p.name), hitcher: esc(res.h.name), pilotKaju: res.pk, hitcherKaju: res.hk }));
+  }
   return res;
 }
 

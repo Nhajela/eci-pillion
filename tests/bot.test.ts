@@ -11,8 +11,9 @@ function fakeTelegram() {
     calls.push({ method, params });
     return method === "getChatMember" ? { status: "member" } : {};
   }) as Ctx["call"];
-  const texts = () => calls.filter((c) => c.method === "sendMessage").map((c) => String(c.params.text));
-  const buttons = () => calls.filter((c) => c.method === "sendMessage").flatMap((c) => ((c.params.reply_markup as { inline_keyboard?: { callback_data?: string }[][] })?.inline_keyboard ?? []).flat().map((b) => b.callback_data));
+  const sent = () => calls.filter((c) => c.method === "sendMessage" || c.method === "sendAnimation");
+  const texts = () => sent().map((c) => String(c.params.text ?? c.params.caption));
+  const buttons = () => sent().flatMap((c) => ((c.params.reply_markup as { inline_keyboard?: { callback_data?: string }[][] })?.inline_keyboard ?? []).flat().map((b) => b.callback_data));
   return { call, calls, texts, buttons };
 }
 

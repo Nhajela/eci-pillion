@@ -15,8 +15,9 @@ function fakeTelegram() {
     calls.push({ method, params });
     return method === "getChatMember" ? { status: "member" } : {};
   }) as Ctx["call"];
-  const texts = () => calls.filter((c) => c.method === "sendMessage").map((c) => String(c.params.text));
-  const buttons = () => calls.filter((c) => c.method === "sendMessage").flatMap((c) => ((c.params.reply_markup as { inline_keyboard?: { callback_data?: string }[][] })?.inline_keyboard ?? []).flat().map((b) => b.callback_data));
+  const sent = () => calls.filter((c) => c.method === "sendMessage" || c.method === "sendAnimation");
+  const texts = () => sent().map((c) => String(c.params.text ?? c.params.caption));
+  const buttons = () => sent().flatMap((c) => ((c.params.reply_markup as { inline_keyboard?: { callback_data?: string }[][] })?.inline_keyboard ?? []).flat().map((b) => b.callback_data));
   return { call, calls, texts, buttons };
 }
 const msg = (id: number, text: string, username = `u${id}`): Update => ({ message: { chat: { id, type: "private" }, from: { id, first_name: `P${id}`, username }, text } });
@@ -154,5 +155,30 @@ describe("places", () => {
     await handleUpdate(ctx, tap(1, "w:from:circle"));
     await handleUpdate(ctx, tap(1, "w:t:0"));
     expect(tg.texts().at(-1)).toContain("quick errand and back (ATM)");
+  });
+});
+
+describe("GIF moments", () => {
+  it("welcome, matched and ride-done carry a GIF; a refused GIF still sends the words", async () => {
+    const db = await testDb();
+    const tg = fakeTelegram();
+    const n = notifier();
+    await handleUpdate({ db, call: tg.call, n, now: T0 }, msg(1, "/start"));
+    expect(tg.calls.find((c) => c.method === "sendAnimation")?.params.animation).toMatch(/\/gifs\/welcome\.gif$/);
+
+    const pilot = await person(db, "Pia", "scooty");
+    const hitcher = await person(db, "Hal");
+    const offer = await createPlan(db, n, pilot, { kind: "offer", fromPlace: "circle", toPlace: "riva", departAt: at(30) }, T0);
+    const { hopOn, confirmRide } = await import("@/services/rides");
+    const ride = await hopOn(db, n, hitcher, offer.plan.id, at(1));
+    expect(n.dms.filter((m) => m.animation?.endsWith("/gifs/matched.gif")).map((m) => m.to).sort()).toEqual([pilot.telegramId, hitcher.telegramId].sort());
+    await confirmRide(db, n, hitcher, ride.id, true, at(60));
+    expect(n.dms.filter((m) => m.animation?.endsWith("/gifs/kaju.gif"))).toHaveLength(2);
+
+    const { send } = await import("@/bot/telegram");
+    const calls: string[] = [];
+    const flaky = (async (method: string) => { calls.push(method); if (method === "sendAnimation") throw new Error("bad file"); return {}; }) as Ctx["call"];
+    await send(flaky, 5, "hello", { animation: "https://x/gifs/kaju.gif" });
+    expect(calls).toEqual(["sendAnimation", "sendMessage"]);
   });
 });
