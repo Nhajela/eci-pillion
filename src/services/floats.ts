@@ -5,7 +5,7 @@ import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { floatKaju, KAJU } from "@/lib/kaju";
 import { FLOAT_RADIUS_M, MATCH_WINDOW_MIN, VILLAGE_RADIUS_M } from "@/lib/match";
-import { destName, distanceM, located, nearestPlace, placeById, placeName } from "@/lib/places";
+import { destName, distanceM, located, nearestPlace, placeById, placeName, tripLabel } from "@/lib/places";
 import { floatableMinutes, istDay, istHHMM, istMinuteOfDay } from "@/lib/time";
 import { award, earnedToday } from "./kaju";
 import { GameError } from "./errors";
@@ -39,7 +39,7 @@ export async function pingFloater(db: Db | Tx, n: Notifier, floater: User, float
   if (!r.length) return false;
   await n.dm({
     to: floater.telegramId,
-    text: `${pick(LINES.rideWanted, { name: esc(owner.name), from: placeName(req.fromPlace), to: destName(req.toPlace, req.note), time: istHHMM(req.departAt) })}\n<i>You're floating, so answer within ${KAJU.floaterAnswerMin} min, please.</i>`,
+    text: `${pick(LINES.rideWanted, { name: esc(owner.name), from: esc(placeName(req.fromPlace)), to: esc(destName(req.toPlace, req.note, req.rangeKm)), time: istHHMM(req.departAt) })}${tripLabel(req.fromPlace, req.toPlace, req.rangeKm) ? `\n<i>🧭 ${tripLabel(req.fromPlace, req.toPlace, req.rangeKm)} from the pickup.</i>` : ""}\n<i>You're floating, so answer within ${KAJU.floaterAnswerMin} min, please.</i>`,
     buttons: floaterButtons(req.id),
   });
   return true;

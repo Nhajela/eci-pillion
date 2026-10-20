@@ -1,8 +1,8 @@
-import { eq } from "drizzle-orm";
+import { eq, gt, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { places, plans, rides, type User } from "@/db/schema";
 import {
-  allPlaces, distanceM, everyPlace, located, looseName, nearestPlace, setPlaces, slugify, SEED_PLACES,
+  allPlaces, distanceM, everyPlace, setPopularity, located, looseName, nearestPlace, setPlaces, slugify, SEED_PLACES,
   type Place, type PlaceKind,
 } from "@/lib/places";
 import { VILLAGE_RADIUS_M } from "@/lib/match";
@@ -18,7 +18,12 @@ let loadedAt = 0;
 /** Refresh the in-memory place list from the database (at most every 20 s unless forced). */
 export async function loadPlaces(db: Db, force = false) {
   if (!force && Date.now() - loadedAt < TTL_MS) return allPlaces();
-  const rows = await db.select().from(places);
+  const [rows, uses] = await Promise.all([
+    db.select().from(places),
+    // the crowd's ranking: how often each place was a destination this past week
+    db.select({ id: plans.toPlace, n: sql<number>`count(*)::int` }).from(plans).where(gt(plans.createdAt, new Date(Date.now() - 7 * 86400_000))).groupBy(plans.toPlace),
+  ]);
+  setPopularity(new Map(uses.map((u) => [u.id, u.n])));
   setPlaces(rows.map((r) => ({ id: r.id, name: r.name, lat: r.lat, lng: r.lng, kind: r.kind as PlaceKind, hidden: r.hidden || r.mergedInto != null, note: r.note, mergedInto: r.mergedInto })));
   loadedAt = Date.now();
   return allPlaces();
@@ -27,6 +32,7 @@ export async function loadPlaces(db: Db, force = false) {
 /** Tests: forget everything people added. */
 export function resetPlaces() {
   setPlaces([]);
+  setPopularity(new Map());
   loadedAt = 0;
 }
 

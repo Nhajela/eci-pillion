@@ -16,9 +16,9 @@ async function liveLines(now: Date) {
   await loadPlaces(d);
   const [feed, open, p] = await Promise.all([recentRides(d, 8), openBoard(d, now), pulse(d, now)]);
   const lines = [
-    ...open.filter((o) => o.plan.kind === "request").slice(0, 3).map((o) => `🙋 ${o.name} is asking for a ride: ${placeName(o.plan.fromPlace)} → ${destName(o.plan.toPlace, o.plan.note)}, around ${istHHMM(o.plan.departAt)}. Anyone?`),
+    ...open.filter((o) => o.plan.kind === "request").slice(0, 3).map((o) => `🙋 ${o.name} is asking for a ride: ${placeName(o.plan.fromPlace)} → ${destName(o.plan.toPlace, o.plan.note, o.plan.rangeKm)}, around ${istHHMM(o.plan.departAt)}. Anyone?`),
     ...open.filter((o) => o.plan.kind === "offer").slice(0, 2).map((o) => `${o.vehicle === "car" ? "🚗" : "🛵"} ${o.name} has ${o.plan.seats} seat${o.plan.seats > 1 ? "s" : ""} to ${placeName(o.plan.toPlace)} around ${istHHMM(o.plan.departAt)}.`),
-    ...feed.map((r) => `🎉 ${r.pilot.name} took ${r.hitcher.name} to ${r.to === "errand" ? "an errand and back" : placeName(r.to)} · ${ago(r.at, now)}`),
+    ...feed.map((r) => `🎉 ${r.pilot.name} took ${r.hitcher.name} ${r.to === "errand" ? "on an errand and back" : `to ${destName(r.to, null, r.rangeKm)}`} · ${ago(r.at, now)}`),
     ...(p.floatingNow ? [`🌴 ${p.floatingNow} floating right now, waiting to be asked.`] : []),
   ];
   return { lines, p };

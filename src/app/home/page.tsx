@@ -8,7 +8,7 @@ import { db } from "@/db";
 import { rides, users } from "@/db/schema";
 import { currentUser } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { allPlaces, destName, nearestPlace, placeName } from "@/lib/places";
+import { allPlaces, destName, nearestPlace, placeName, tripLabel } from "@/lib/places";
 import { loadPlaces } from "@/services/places";
 import { InviteCard } from "@/components/invite-card";
 import { Pulse } from "@/components/pulse";
@@ -68,7 +68,7 @@ export default async function Home() {
             <h2>Did these happen?</h2>
             {toConfirm.map((r) => (
               <div key={r.id} className="line">
-                <span>{istHHMM(r.departAt)} → <b>{placeName(r.toPlace)}</b> with {nameOf(r.pilotId === user.id ? r.hitcherId : r.pilotId)}</span>
+                <span>{istHHMM(r.departAt)} → <b>{destName(r.toPlace, null, r.rangeKm)}</b> with {nameOf(r.pilotId === user.id ? r.hitcherId : r.pilotId)}</span>
                 <span className="btns">
                   <ActButton body={{ action: "confirm", id: r.id, happened: true }} className="btn small">✅ We rode</ActButton>
                   <ActButton body={{ action: "confirm", id: r.id, happened: false }} className="btn small ghost">Didn&apos;t happen</ActButton>
@@ -83,13 +83,13 @@ export default async function Home() {
             <h2>Your plans</h2>
             {upcoming.map((r) => (
               <div key={`r${r.id}`} className="line">
-                <span>🛵 <b>{istHHMM(r.departAt)}</b> {placeName(r.fromPlace)} → <b>{placeName(r.toPlace)}</b>, {r.pilotId === user.id ? "taking" : "riding with"} {nameOf(r.pilotId === user.id ? r.hitcherId : r.pilotId)}</span>
+                <span>🛵 <b>{istHHMM(r.departAt)}</b> {placeName(r.fromPlace)} → <b>{destName(r.toPlace, null, r.rangeKm)}</b>, {r.pilotId === user.id ? "taking" : "riding with"} {nameOf(r.pilotId === user.id ? r.hitcherId : r.pilotId)}</span>
                 <ActButton body={{ action: "cancelRide", id: r.id }} className="btn small ghost" confirm="Cancel this ride? Inside 30 minutes it costs 5 kaju.">Can&apos;t make it</ActButton>
               </div>
             ))}
             {mine.filter((p) => p.status === "open").map((p) => (
               <div key={`p${p.id}`} className="line">
-                <span>{p.kind === "offer" ? `🛵 Going, ${p.seats} seat${p.seats > 1 ? "s" : ""} free` : "🙋 Looking for a ride"} · <b>{istHHMM(p.departAt)}</b> {placeName(p.fromPlace)} → <b>{destName(p.toPlace, p.note)}</b></span>
+                <span>{p.kind === "offer" ? `🛵 Going, ${p.seats} seat${p.seats > 1 ? "s" : ""} free` : "🙋 Looking for a ride"} · <b>{istHHMM(p.departAt)}</b> {placeName(p.fromPlace)} → <b>{destName(p.toPlace, p.note, p.rangeKm)}</b></span>
                 <ActButton body={{ action: "cancelPlan", id: p.id }} className="btn small ghost">Cancel</ActButton>
               </div>
             ))}
@@ -107,14 +107,14 @@ export default async function Home() {
           {offers.length > 0 && <h3>Seats going</h3>}
           {offers.map(({ plan, user: u }) => (
             <div key={plan.id} className="line">
-              <span className="who"><Face u={u} /><span>{vehicleEmoji(u.vehicle)} <b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{placeName(plan.toPlace)}</b> · {plan.seats} seat{plan.seats > 1 ? "s" : ""}</span></span>
+              <span className="who"><Face u={u} /><span>{vehicleEmoji(u.vehicle)} <b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{destName(plan.toPlace, plan.note, plan.rangeKm)}</b>{tripLabel(plan.fromPlace, plan.toPlace, plan.rangeKm) && <span className="hint"> · 🧭 {tripLabel(plan.fromPlace, plan.toPlace, plan.rangeKm)}</span>} · {plan.seats} seat{plan.seats > 1 ? "s" : ""}</span></span>
               <ActButton body={{ action: "hop", id: plan.id }} done="You're on! Check Telegram. 🛵">Hop on</ActButton>
             </div>
           ))}
           {requests.length > 0 && <h3>People looking for a ride</h3>}
           {requests.map(({ plan, user: u }) => (
             <div key={plan.id} className="line">
-              <span className="who"><Face u={u} /><span><b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{destName(plan.toPlace, plan.note)}</b></span></span>
+              <span className="who"><Face u={u} /><span><b>{u.name}</b> · {istHHMM(plan.departAt)} {placeName(plan.fromPlace)} → <b>{destName(plan.toPlace, plan.note, plan.rangeKm)}</b>{tripLabel(plan.fromPlace, plan.toPlace, plan.rangeKm) && <span className="hint"> · 🧭 {tripLabel(plan.fromPlace, plan.toPlace, plan.rangeKm)}</span>}</span></span>
               {user.vehicle !== "none" && <ActButton body={{ action: "take", id: plan.id }} done="Matched! Check Telegram. 🛵">I&apos;ll take them</ActButton>}
             </div>
           ))}

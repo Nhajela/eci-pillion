@@ -43,6 +43,13 @@
       "when": 1792482141547,
       "tag": "0005_place_merge",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792484613214,
+      "tag": "0006_open_destinations",
+      "breakpoints": true
     }
   ]
 }

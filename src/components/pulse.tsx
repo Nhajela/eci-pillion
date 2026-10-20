@@ -55,7 +55,7 @@ export function RideFeed({ items, now }: { items: FeedItem[]; now: Date }) {
         <li key={r.id}>
           <span className="pair"><Face u={r.pilot} /><Face u={r.hitcher} /></span>
           <span>
-            <b>{r.pilot.name}</b> {r.vehicle === "car" ? "🚗" : "🛵"} took <b>{r.hitcher.name}</b> {r.to === "errand" ? `on ${destName(r.to)} from ${placeName(r.from)}` : <>to <b>{placeName(r.to)}</b></>}
+            <b>{r.pilot.name}</b> {r.vehicle === "car" ? "🚗" : "🛵"} took <b>{r.hitcher.name}</b> {r.to === "errand" ? `on ${destName(r.to)} from ${placeName(r.from)}` : r.to === "open" ? <>from {placeName(r.from)} to <b>{destName(r.to, null, r.rangeKm)}</b></> : <>to <b>{placeName(r.to)}</b></>}
             {r.viaFloat ? " 🌴" : ""}
             <span className="hint"> · {ago(r.at, now)}</span>
           </span>

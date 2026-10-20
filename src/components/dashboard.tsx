@@ -66,13 +66,13 @@ export async function Dashboard({ me, canEdit }: { me: User; canEdit: boolean })
         <h3>Matched rides</h3>
         {!d.upcoming.length && <p className="empty">None right now.</p>}
         {d.upcoming.map((r) => (
-          <div key={r.id} className="line"><span><b>{istHHMM(r.departAt)}</b> {placeName(r.fromPlace)} → <b>{placeName(r.toPlace)}</b> · {r.pilot} taking {r.hitcher}{r.viaFloat ? " 🌴" : ""}</span></div>
+          <div key={r.id} className="line"><span><b>{istHHMM(r.departAt)}</b> {placeName(r.fromPlace)} → <b>{destName(r.toPlace, null, r.rangeKm)}</b> · {r.pilot} taking {r.hitcher}{r.viaFloat ? " 🌴" : ""}</span></div>
         ))}
         <h3>Open plans</h3>
         {!d.board.length && <p className="empty">None right now.</p>}
         {d.board.map(({ plan: p, user: u }) => (
           <div key={p.id} className="line">
-            <span>{p.kind === "offer" ? `${vehicleEmoji(u.vehicle)} offer` : "🙋 request"} · <b>{istHHMM(p.departAt)}</b> {placeName(p.fromPlace)} → <b>{destName(p.toPlace, p.note)}</b> · {u.name}{p.kind === "offer" ? ` · ${p.seats} seat${p.seats > 1 ? "s" : ""}` : ""} · posted {Math.round(p.leadMinutes / 60 * 10) / 10} h ahead</span>
+            <span>{p.kind === "offer" ? `${vehicleEmoji(u.vehicle)} offer` : "🙋 request"} · <b>{istHHMM(p.departAt)}</b> {placeName(p.fromPlace)} → <b>{destName(p.toPlace, p.note, p.rangeKm)}</b> · {u.name}{p.kind === "offer" ? ` · ${p.seats} seat${p.seats > 1 ? "s" : ""}` : ""} · posted {Math.round(p.leadMinutes / 60 * 10) / 10} h ahead</span>
           </div>
         ))}
         <h3>Floating</h3>

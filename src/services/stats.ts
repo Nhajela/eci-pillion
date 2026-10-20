@@ -35,7 +35,7 @@ export async function pulse(db: Db, now: Date) {
   };
 }
 
-export type FeedItem = { id: number; at: Date; pilot: Face; hitcher: Face; vehicle: string; from: string; to: string; viaFloat: boolean };
+export type FeedItem = { id: number; at: Date; pilot: Face; hitcher: Face; vehicle: string; from: string; to: string; rangeKm: number | null; viaFloat: boolean };
 type Face = { id: number; name: string; avatar: string | null; scooty: string };
 
 /** The rides that happened, newest first. */
@@ -49,7 +49,7 @@ export async function recentRides(db: Db, limit = 20): Promise<FeedItem[]> {
   };
   return rs.map((r) => ({
     id: r.id, at: r.completedAt ?? r.departAt, pilot: face(r.pilotId), hitcher: face(r.hitcherId),
-    vehicle: us.find((u) => u.id === r.pilotId)?.vehicle ?? "scooty", from: r.fromPlace, to: r.toPlace, viaFloat: r.viaFloat,
+    vehicle: us.find((u) => u.id === r.pilotId)?.vehicle ?? "scooty", from: r.fromPlace, to: r.toPlace, rangeKm: r.rangeKm, viaFloat: r.viaFloat,
   }));
 }
 
@@ -68,6 +68,18 @@ export async function leaders(db: Db, limit = 5) {
       .from(kaju).innerJoin(users, eq(kaju.userId, users.id)).where(eq(kaju.reason, "float")).groupBy(users.id).orderBy(desc(sql`sum(${kaju.amount})`)).limit(limit),
   ]);
   return { pilots: top(pilots), hitchers: top(hitchers), inviters: top(inviters), floaters: top(floaters) };
+}
+
+/** Where the village goes: the most-chosen destinations (named places only), all time. */
+export async function topDestinations(db: Db, limit = 6) {
+  const rows = await db
+    .select({ id: plans.toPlace, n: count })
+    .from(plans)
+    .where(sql`${plans.toPlace} not in ('open', 'errand')`)
+    .groupBy(plans.toPlace)
+    .orderBy(desc(count))
+    .limit(limit);
+  return rows;
 }
 
 /** Open asks and seats right now, for the board (first names only, like the group announcements). */

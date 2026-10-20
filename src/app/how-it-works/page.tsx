@@ -155,6 +155,9 @@ export default async function HowItWorks() {
           <li><b>Not on the list?</b> Tap “➕ Somewhere else” and type it: your stay, a café, a beach shack. The bot asks you to drop a pin (📎 → Location → move the map → send). From then on it&apos;s on the list for everyone. Nobody has to add places by hand.</li>
           <li><b>No duplicates.</b> The same name (any capitals) or a pin within {DEDUPE_M} m of a known place reuses that place.</li>
           <li><b>Close counts.</b> Two pinned places within {SAME_PLACE_M} m count as the same destination, so a ride to the stay next to Riva matches someone going to Riva.</li>
+          <li><b>Or leave it open.</b> Pick “🧭 Open: I&apos;ll say how far” and choose ~2, 5, 10 or 15 km. A hitcher uses it for “somewhere about 5 km from Riva, I&apos;ll say where”; a pilot for “free to drop someone up to 5 km from the Circle”. Drivers starting within 1.5 km of the pickup get the ask, with the distance, and you sort out exactly where when you meet.</li>
+          <li><b>How far is it?</b> Every ask and offer shows the trip (≈2.5 km · ~6 min) when both places have a pin: road distance is about 1.35× the straight line, at a scooty&apos;s ~25 km/h. So a driver knows what they&apos;re saying yes to.</li>
+          <li><b>The crowd ranks places.</b> After the hubs and tonight&apos;s events, places come in the order the village has picked them this week. The board shows “Where the village goes”.</li>
           <li><b>Pins help floaters.</b> A place with no pin still works for matching by name, but floaters can&apos;t be pinged to pick you up there. Drop a pin when you add it.</li>
         </ul>
       </section>
@@ -259,6 +262,7 @@ export default async function HowItWorks() {
           <summary>How matching decides</summary>
           <ul className="bullets">
             <li>An offer fits a request when the destinations are the same place (or pinned within {SAME_PLACE_M} m), the times are within {MATCH_WINDOW_MIN} min, there&apos;s a free seat, and they&apos;re two different people.</li>
+            <li>Open destinations: the pickups must be within 1.5 km. An open request fits any offer starting there (the driver sees how far); an open offer (“up to N km”) fits requests whose trip is within N km, or open requests with a smaller range. The ride keeps the hitcher&apos;s destination when they posted one.</li>
             <li>A new request pings every pilot whose offer fits, plus, if it&apos;s within the hour, floaters within {km(FLOAT_RADIUS_M)} of the pickup who are free then (7am–11pm). Errands only go to floaters.</li>
             <li>A new offer pings every hitcher whose request fits. A floater who starts floating is told about up to 3 open requests nearby.</li>
             <li>A ride starts when someone taps Hop on / I&apos;ll take them; the first tap wins, and seats are checked at that moment.</li>

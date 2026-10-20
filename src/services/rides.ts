@@ -1,11 +1,11 @@
 import { and, eq, gt, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
-import { floatPings, floats, plans, rides, users, type Ride, type User } from "@/db/schema";
+import { floatPings, floats, plans, rides, users, type Plan, type Ride, type User } from "@/db/schema";
 import { esc, gifUrl, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { isLateCancel, KAJU, vehicleEmoji } from "@/lib/kaju";
 import { MATCH_WINDOW_MIN, offerFitsRequest } from "@/lib/match";
-import { placeName } from "@/lib/places";
+import { destName, OPEN, placeName, tripLabel } from "@/lib/places";
 import { inviteFirstRide } from "./invites";
 import { celebrateMilestone } from "./stats";
 import { istDayStart, istHHMM } from "@/lib/time";
@@ -19,14 +19,23 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 const who = (u: User) =>
   u.username ? `<a href="https://t.me/${u.username}">${esc(u.name)}</a>` : `<a href="tg://user?id=${u.telegramId}">${esc(u.name)}</a>`;
 
+/** Where a ride goes: the hitcher's own request if they posted one (they decide where they're dropped, even if they
+ *  left it open), otherwise the pilot's offer. */
+function rideEnds(offer: Plan | null | undefined, req: Plan | null | undefined) {
+  const p = req ?? offer!;
+  return { fromPlace: p.fromPlace, toPlace: p.toPlace, rangeKm: p.toPlace === OPEN.id ? p.rangeKm : null };
+}
+
 function matchedEffects(ride: Ride, pilot: User, hitcher: User): Effects {
-  const to = placeName(ride.toPlace);
-  const from = placeName(ride.fromPlace);
+  const to = esc(destName(ride.toPlace, null, ride.rangeKm));
+  const from = esc(placeName(ride.fromPlace));
+  const trip = tripLabel(ride.fromPlace, ride.toPlace, ride.rangeKm);
+  const howFar = trip ? `\n🧭 ${trip}.${ride.toPlace === OPEN.id ? " Sort out exactly where when you meet." : ""}` : "";
   const time = istHHMM(ride.departAt);
   const cancel = [[{ text: "Can't make it", data: `cxr:${ride.id}` }]];
   return [
-    (n) => n.dm({ to: pilot.telegramId, text: `${vehicleEmoji(pilot.vehicle)} You're taking ${who(hitcher)} from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Say hi and sort the pickup spot.${pilot.vehicle === "car" ? "" : " Spare helmet?"}`, buttons: cancel, animation: gifUrl("matched") }),
-    (n) => n.dm({ to: hitcher.telegramId, text: `💞 ${who(pilot)} ${pilot.vehicle === "car" ? "(by car 🚗) " : ""}is taking you from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Message them to sort the pickup spot.`, buttons: cancel, animation: gifUrl("matched") }),
+    (n) => n.dm({ to: pilot.telegramId, text: `${vehicleEmoji(pilot.vehicle)} You're taking ${who(hitcher)} from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Say hi and sort the pickup spot.${pilot.vehicle === "car" ? "" : " Spare helmet?"}${howFar}`, buttons: cancel, animation: gifUrl("matched") }),
+    (n) => n.dm({ to: hitcher.telegramId, text: `💞 ${who(pilot)} ${pilot.vehicle === "car" ? "(by car 🚗) " : ""}is taking you from <b>${from}</b> to <b>${to}</b> around <b>${time}</b>. Message them to sort the pickup spot.${howFar}`, buttons: cancel, animation: gifUrl("matched") }),
     (n) => n.announce(pick(LINES.match, { pilot: esc(pilot.name), hitcher: esc(hitcher.name), to, time })),
   ];
 }
@@ -81,7 +90,7 @@ export async function takeRequest(db: Db, n: Notifier, pilot: User, requestId: n
     const [float] = await tx.select().from(floats).where(and(eq(floats.userId, pilot.id), isNull(floats.endedAt), gt(floats.liveUntil, now)));
     const [ride] = await tx
       .insert(rides)
-      .values({ offerId: offer?.id ?? null, requestId: req.id, pilotId: pilot.id, hitcherId: req.userId, fromPlace: req.fromPlace, toPlace: req.toPlace, departAt: req.departAt, viaFloat: Boolean(float), createdAt: now })
+      .values({ offerId: offer?.id ?? null, requestId: req.id, pilotId: pilot.id, hitcherId: req.userId, ...rideEnds(offer, req), departAt: req.departAt, viaFloat: Boolean(float), createdAt: now })
       .returning();
     await tx.update(plans).set({ status: "full" }).where(eq(plans.id, req.id));
     if (offer) await tx.update(plans).set({ seats: offer.seats - 1, status: offer.seats - 1 > 0 ? "open" : "full" }).where(eq(plans.id, offer.id));
@@ -110,7 +119,7 @@ export async function hopOn(db: Db, n: Notifier, hitcher: User, offerId: number,
     const req = mine.find((r) => offerFitsRequest(offer, r));
     const [ride] = await tx
       .insert(rides)
-      .values({ offerId: offer.id, requestId: req?.id ?? null, pilotId: offer.userId, hitcherId: hitcher.id, fromPlace: offer.fromPlace, toPlace: offer.toPlace, departAt: offer.departAt, createdAt: now })
+      .values({ offerId: offer.id, requestId: req?.id ?? null, pilotId: offer.userId, hitcherId: hitcher.id, ...rideEnds(offer, req), departAt: offer.departAt, createdAt: now })
       .returning();
     await tx.update(plans).set({ seats: offer.seats - 1, status: offer.seats - 1 > 0 ? "open" : "full" }).where(eq(plans.id, offer.id));
     if (req) await tx.update(plans).set({ status: "full" }).where(eq(plans.id, req.id));
@@ -140,7 +149,7 @@ export async function cancelRideInTx(tx: Tx, by: User, ride: Ride, now: Date, op
   if (late) await award(tx, by.id, KAJU.lateCancel, "late_cancel", `ride:${ride.id}`, now);
   const otherId = byPilot ? ride.hitcherId : ride.pilotId;
   const [other] = await tx.select().from(users).where(eq(users.id, otherId));
-  const to = placeName(ride.toPlace);
+  const to = destName(ride.toPlace, null, ride.rangeKm);
   const text = late
     ? pick(LINES.lateCancel, { name: esc(by.name) })
     : `${esc(by.name)} can't make the ${istHHMM(ride.departAt)} ride to <b>${to}</b> after all. ${byPilot ? "Your request is open again, so someone else can grab it." : "Your seat is free again."}`;

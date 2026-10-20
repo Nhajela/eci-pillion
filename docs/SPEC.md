@@ -112,3 +112,15 @@ seats going with Hop on, every ride that happened (newest first), and all-time l
 floaters). First names and avatars only, like the group announcements. Each milestone is announced once in the group
 with the prizes GIF. The same pulse shows on the landing page (with a live ticker of real asks and rides, samples only
 until there's activity), /home, /today and the explainer.
+
+## Open destinations and distances (release 8)
+- `to_place = 'open'` with `range_km` (2, 5, 10 or 15): "somewhere ~5 km from the pickup, I'll say where" (request) or
+  "free to drop someone up to 5 km" (offer). Optional note ("towards Morjim").
+- Fit (`destinationsFit` in `src/lib/match.ts`): pickups within 1.5 km (or the same place), then: request open → any
+  offer; offer open → the request's trip ≤ range (when measurable) or an open request with range ≤ offer's; both
+  concrete → same place / within 600 m as before.
+- A ride takes the hitcher's request ends when there is one (open stays open, with its range), else the offer's.
+- Distance for drivers (`tripLabel`): straight line × 1.35 road factor at 25 km/h, minimum 3 min, shown in pings,
+  match messages, the bot's confirmations, /home and /board ("≈2.5 km · ~6 min", "up to ~5 km · ~12 min").
+- Crowd ranking: after hubs and events, pickers sort places by how often they were a destination in the last 7 days.
+  The board lists "Where the village goes".

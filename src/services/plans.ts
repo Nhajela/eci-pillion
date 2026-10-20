@@ -5,7 +5,7 @@ import { esc, type Notifier } from "@/bot/telegram";
 import { LINES, pick } from "@/bot/lines";
 import { KAJU, maxSeats, planKaju } from "@/lib/kaju";
 import { floaterNear, offerFitsRequest } from "@/lib/match";
-import { destName, ERRAND, placeById, placeName } from "@/lib/places";
+import { destName, ERRAND, OPEN, placeById, placeName, tripLabel } from "@/lib/places";
 import { istDay, istHHMM } from "@/lib/time";
 import { award, earnedToday } from "./kaju";
 import { cancelRideInTx, type Effects } from "./rides";
@@ -15,18 +15,20 @@ import { once } from "./once";
 export { GameError } from "./errors";
 import { GameError } from "./errors";
 
-export type NewPlan = { kind: "offer" | "request"; fromPlace: string; toPlace: string; departAt: Date; seats?: number; note?: string };
+export type NewPlan = { kind: "offer" | "request"; fromPlace: string; toPlace: string; departAt: Date; seats?: number; note?: string; rangeKm?: number | null };
 
 export function validatePlan(input: NewPlan, now: Date, seatCap = 1) {
   if (input.kind !== "offer" && input.kind !== "request") throw new GameError("Pilot or hitcher?");
-  if (!placeById(input.fromPlace) || !placeById(input.toPlace) || input.fromPlace === ERRAND.id) throw new GameError("Pick places from the list.");
+  if (!placeById(input.fromPlace) || !placeById(input.toPlace) || input.fromPlace === ERRAND.id || input.fromPlace === OPEN.id) throw new GameError("Pick places from the list.");
+  const open = input.toPlace === OPEN.id;
+  if (open && !(input.rangeKm && input.rangeKm >= 1 && input.rangeKm <= 20)) throw new GameError("Roughly how far from the pickup? Pick 2, 5, 10 or 15 km.");
   if (input.toPlace === ERRAND.id && input.kind === "offer") throw new GameError("Errands are for asking a floater. Going somewhere? Pick where.");
   if (input.fromPlace === input.toPlace) throw new GameError("That's where you already are!");
   const t = input.departAt.getTime();
   if (Number.isNaN(t) || t < now.getTime() - 10 * 60_000) throw new GameError("That time has already gone by.");
   if (t > now.getTime() + 36 * 3600_000) throw new GameError("Plans can be up to a day and a half ahead.");
   const seats = input.kind === "offer" ? Math.min(Math.max(1, seatCap), Math.max(1, input.seats ?? 1)) : 1;
-  return { ...input, seats, note: input.note?.replace(/[<>&]/g, "").trim().slice(0, 120) || null };
+  return { ...input, seats, rangeKm: open ? Math.round(input.rangeKm!) : null, note: input.note?.replace(/[<>&]/g, "").trim().slice(0, 120) || null };
 }
 
 const offerButtons = (offerId: number) => [[{ text: "🛵 Hop on", data: `hop:${offerId}` }]];
@@ -39,7 +41,7 @@ export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan
   const { plan, got } = await db.transaction(async (tx) => {
     const [plan] = await tx
       .insert(plans)
-      .values({ userId: user.id, kind: v.kind, fromPlace: v.fromPlace, toPlace: v.toPlace, departAt: v.departAt, leadMinutes: lead, seats: v.seats, note: v.note, createdAt: now })
+      .values({ userId: user.id, kind: v.kind, fromPlace: v.fromPlace, toPlace: v.toPlace, departAt: v.departAt, leadMinutes: lead, seats: v.seats, note: v.note, rangeKm: v.rangeKm, createdAt: now })
       .returning();
     const today = await earnedToday(tx, user.id, "plan", now);
     const got = today.count < KAJU.planAwardsPerDay ? await award(tx, user.id, planKaju(lead), "plan", `plan:${plan.id}`, now) : 0;
@@ -48,7 +50,7 @@ export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan
 
   const when = istHHMM(plan.departAt);
   if (lead >= 120 && got > 0 && (await once(db, `earlybird:${user.id}:${istDay(now)}`))) {
-    await n.announce(pick(LINES.earlyBird, { name: esc(user.name), to: esc(destName(plan.toPlace, plan.note)), time: when, hoursAhead: Math.floor(lead / 60) }));
+    await n.announce(pick(LINES.earlyBird, { name: esc(user.name), to: esc(destName(plan.toPlace, plan.note, plan.rangeKm)), time: when, hoursAhead: Math.floor(lead / 60) }));
   }
   const pinged = await pingMatches(db, n, user, plan, now);
   return { plan, kaju: got, pinged };
@@ -56,7 +58,9 @@ export async function createPlan(db: Db, n: Notifier, user: User, input: NewPlan
 
 /** DM everyone who could match this plan. Returns how many people were pinged. */
 export async function pingMatches(db: Db, n: Notifier, owner: User, plan: Plan, now: Date) {
-  const vals = { name: esc(owner.name), from: esc(placeName(plan.fromPlace)), to: esc(destName(plan.toPlace, plan.note)), time: istHHMM(plan.departAt) };
+  const vals = { name: esc(owner.name), from: esc(placeName(plan.fromPlace)), to: esc(destName(plan.toPlace, plan.note, plan.rangeKm)), time: istHHMM(plan.departAt) };
+  const trip = tripLabel(plan.fromPlace, plan.toPlace, plan.rangeKm);
+  const howFar = trip ? `\n<i>🧭 ${trip} from the pickup${plan.toPlace === OPEN.id ? "; they'll say exactly where" : ""}.</i>` : "";
   const open = await db
     .select({ p: plans, u: users })
     .from(plans)
@@ -67,7 +71,7 @@ export async function pingMatches(db: Db, n: Notifier, owner: User, plan: Plan, 
     for (const { p, u } of open) {
       if (offerFitsRequest(p, plan) && !told.has(u.id)) {
         told.add(u.id);
-        await n.dm({ to: u.telegramId, text: pick(LINES.rideWanted, vals), buttons: takeButtons(plan.id) });
+        await n.dm({ to: u.telegramId, text: pick(LINES.rideWanted, vals) + howFar, buttons: takeButtons(plan.id) });
       }
     }
     // floaters near the pickup, for rides in the next hour
@@ -84,7 +88,7 @@ export async function pingMatches(db: Db, n: Notifier, owner: User, plan: Plan, 
     for (const { p, u } of open) {
       if (offerFitsRequest(plan, p) && !told.has(u.id)) {
         told.add(u.id);
-        await n.dm({ to: u.telegramId, text: pick(LINES.seatOffered, vals), buttons: offerButtons(plan.id) });
+        await n.dm({ to: u.telegramId, text: pick(LINES.seatOffered, vals) + howFar, buttons: offerButtons(plan.id) });
       }
     }
   }

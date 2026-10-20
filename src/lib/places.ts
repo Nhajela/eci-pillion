@@ -35,14 +35,57 @@ export const PLACES = SEED_PLACES.filter((p) => p.map) as (Located & { map: { x:
 /** "Pop to a shop nearby and come back": a request's destination, not a real place. Starts and ends at `from`. */
 export const ERRAND: Place = { id: "errand", name: "a quick errand and back", lat: null, lng: null, kind: "spot" };
 
-/** Where a plan is headed, for people: "Arambol", or "a quick errand and back (pharmacy)". */
-export const destName = (toPlace: string, note?: string | null) =>
-  toPlace === ERRAND.id && note ? `${ERRAND.name} (${note})` : placeName(toPlace);
+/** "Somewhere ~5 km from the pickup, I'll say where": a destination left open, with how far it is. */
+export const OPEN: Place = { id: "open", name: "somewhere open", lat: null, lng: null, kind: "spot" };
+export const RANGES_KM = [2, 5, 10, 15] as const;
+
+/** Where a plan is headed, for people: "Arambol", "a quick errand and back (pharmacy)", "somewhere ~5 km away". */
+export function destName(toPlace: string, note?: string | null, rangeKm?: number | null) {
+  if (toPlace === OPEN.id) return `somewhere ~${rangeKm ?? "?"} km away${note ? ` (${note})` : ""}`;
+  return toPlace === ERRAND.id && note ? `${ERRAND.name} (${note})` : placeName(toPlace);
+}
+
+// Village roads wind: straight-line distance × 1.35, at a scooty's ~25 km/h.
+const ROAD_FACTOR = 1.35;
+const SPEED_KMH = 25;
+export const minutesFor = (km: number) => Math.max(3, Math.round((km / SPEED_KMH) * 60));
+const fmtKm = (km: number) => (km < 10 ? km.toFixed(1) : String(Math.round(km)));
+
+/** Road kilometres between two pinned places, or null. */
+export function tripKm(from: string, to: string) {
+  const a = placeById(from);
+  const b = placeById(to);
+  return located(a) && located(b) ? (distanceM(a, b) / 1000) * ROAD_FACTOR : null;
+}
+
+/** For the driver: "≈3.2 km · ~8 min", or "up to ~5 km · ~12 min" for an open destination; null if we can't tell. */
+export function tripLabel(from: string, to: string, rangeKm?: number | null) {
+  if (to === OPEN.id) return rangeKm ? `up to ~${rangeKm} km · ~${minutesFor(rangeKm)} min` : null;
+  if (to === ERRAND.id) return null;
+  const km = tripKm(from, to);
+  return km == null ? null : `≈${fmtKm(km)} km · ~${minutesFor(km)} min`;
+}
+
+/** Two pickups close enough for one person to get to the other (same place, or pinned within 1.5 km). */
+export const PICKUP_NEAR_M = 1500;
+export function pickupNear(a: string, b: string) {
+  if (a === b) return true;
+  const pa = placeById(a);
+  const pb = placeById(b);
+  return located(pa) && located(pb) && distanceM(pa, pb) <= PICKUP_NEAR_M;
+}
 
 /** Two places this close count as the same destination when matching (a stay next to Riva is Riva). */
 export const SAME_PLACE_M = 600;
 
 let current: Place[] = SEED_PLACES;
+let popularity = new Map<string, number>();
+
+/** How often each place was a destination lately: the crowd's ranking for pickers. */
+export function setPopularity(uses: Map<string, number>) {
+  popularity = uses;
+}
+export const usesOf = (id: string) => popularity.get(id) ?? 0;
 
 /** Replace the list with database rows layered over the seeds (a row with a seed's id overrides it). */
 export function setPlaces(rows: Place[]) {
@@ -53,7 +96,8 @@ export function setPlaces(rows: Place[]) {
 
 const KIND_ORDER: Record<PlaceKind, number> = { hub: 0, event: 1, spot: 2, stay: 3 };
 
-/** Visible places for pickers: hubs first, then tonight's events, then spots, then stays. */
+/** Visible places for pickers: hubs first, then tonight's events, then wherever the village has been going lately
+ *  (the crowd's ranking), then spots, then stays. */
 export function allPlaces() {
   const seedIdx = (id: string) => {
     const i = SEED_PLACES.findIndex((p) => p.id === id);
@@ -61,13 +105,16 @@ export function allPlaces() {
   };
   return current
     .filter((p) => !p.hidden)
-    .sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || seedIdx(a.id) - seedIdx(b.id) || a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      const tier = (p: Place) => (p.kind === "hub" ? 0 : p.kind === "event" ? 1 : 2);
+      return tier(a) - tier(b) || (tier(a) === 2 ? usesOf(b.id) - usesOf(a.id) : 0) || KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || seedIdx(a.id) - seedIdx(b.id) || a.name.localeCompare(b.name);
+    });
 }
 
 /** Every place, hidden ones too (old plans still need their names). */
 export const everyPlace = () => current;
 
-export const placeById = (id: string): Place | undefined => (id === ERRAND.id ? ERRAND : current.find((p) => p.id === id));
+export const placeById = (id: string): Place | undefined => (id === ERRAND.id ? ERRAND : id === OPEN.id ? OPEN : current.find((p) => p.id === id));
 export const placeName = (id: string) => placeById(id)?.name ?? id;
 export const located = (p: Place | undefined): p is Located => p != null && p.lat != null && p.lng != null;
 
@@ -99,7 +146,7 @@ export const nearestMapPlace = (pt: { lat: number; lng: number }) => nearestOf(p
 /** Same destination? Same id, or both pinned within SAME_PLACE_M of each other. */
 export function samePlace(a: string, b: string) {
   if (a === b) return true;
-  if (a === ERRAND.id || b === ERRAND.id) return false;
+  if (a === ERRAND.id || b === ERRAND.id || a === OPEN.id || b === OPEN.id) return false;
   const pa = placeById(a);
   const pb = placeById(b);
   return located(pa) && located(pb) && distanceM(pa, pb) <= SAME_PLACE_M;

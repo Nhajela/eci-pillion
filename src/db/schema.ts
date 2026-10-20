@@ -42,6 +42,7 @@ export const plans = pgTable(
     seats: integer("seats").notNull().default(1), // offers: seats still free
     status: text("status").notNull().default("open"), // open | full | done | cancelled
     note: text("note"),
+    rangeKm: integer("range_km"), // to_place 'open': how far from the pickup, roughly
     createdAt: ts("created_at").notNull().defaultNow(),
   },
   (t) => [index("plans_open").on(t.status, t.departAt)],
@@ -59,6 +60,7 @@ export const rides = pgTable(
     toPlace: text("to_place").notNull(),
     departAt: ts("depart_at").notNull(),
     viaFloat: boolean("via_float").notNull().default(false),
+    rangeKm: integer("range_km"), // to_place 'open': how far, copied from the plan
     status: text("status").notNull().default("matched"), // matched | done | cancelled | expired
     deniedBy: integer("denied_by").references(() => users.id), // said "didn't happen"; the other can still say yes
     cancelledBy: integer("cancelled_by").references(() => users.id),

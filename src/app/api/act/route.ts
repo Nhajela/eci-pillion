@@ -23,6 +23,7 @@ const Body = z.discriminatedUnion("action", [
     seats: z.number().int().min(1).max(6).optional(), note: z.string().max(120).optional(),
     // "Somewhere else": a typed place name instead of an id
     fromName: z.string().max(60).optional(), toName: z.string().max(60).optional(),
+    rangeKm: z.number().int().min(1).max(20).optional(),
   }),
   z.object({ action: z.literal("invite"), username: z.string().min(1).max(64) }),
   z.object({ action: z.literal("report"), kind: z.enum(["bug", "feature"]), text: z.string().min(1).max(2000), page: z.string().max(200).optional() }),
@@ -91,7 +92,7 @@ export async function POST(req: Request) {
         if (!departAt) throw new GameError("Pick a time like 4:30pm.");
         const fromPlace = b.fromName?.trim() ? (await findOrAddPlace(db(), user, b.fromName, null)).place.id : b.from;
         const toPlace = b.toName?.trim() ? (await findOrAddPlace(db(), user, b.toName, null)).place.id : b.to;
-        const r = await createPlan(db(), n, user, { kind: b.kind, fromPlace, toPlace, departAt, seats: b.seats, note: b.note }, now);
+        const r = await createPlan(db(), n, user, { kind: b.kind, fromPlace, toPlace, departAt, seats: b.seats, note: b.note, rangeKm: b.rangeKm }, now);
         return NextResponse.json({ ok: true, kaju: r.kaju, pinged: r.pinged });
       }
       case "cancelPlan": await cancelPlan(db(), n, user, b.id, now); break;
