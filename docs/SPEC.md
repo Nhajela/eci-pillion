@@ -166,3 +166,9 @@ leaving within 2 h, with no ride, gets (1) pilots with offers ±90 min going wit
 pickups within 4 km), skipping those normal matching already pinged; (2) floaters within 6 km not already pinged (no
 refusal penalty: outside their radius); (3) up to 8 people with wheels, not floating, not busy then, active this week,
 at most 2 such nudges per person per IST day. All get an "I'll take them" button.
+
+## Admin alerts (release 15)
+`services/admin-alerts.ts`. Each first-time sign-up DMs every admin ("🆕 Priya joined: 🛵 scooty, invited by Asha.
+That's 42 people now"), at most 20 a day (`sent_keys signup-alert:<day>:<n>`); admins aren't told about themselves.
+At 21:00 IST (`digest:<day>`) every admin gets the day's summary: who joined, plans posted, rides matched and done,
+asks from today nobody took, new places, and the dashboard's Worth-a-look list. Both carry an "Open the dashboard" button.

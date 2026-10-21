@@ -237,6 +237,7 @@ export default async function HowItWorks() {
             <li><b>/admin</b> in the bot sends a one-time link. The dashboard shows today&apos;s numbers, every bug and idea (move them: on it, done, won&apos;t do; done thanks the reporter), matched rides, open plans, who&apos;s floating, places (add, rename, re-pin with “lat, lng” or a Google Maps link, change kind, hide) and people (roles).</li>
             <li><b>/staff</b> is the same dashboard, read-only.</li>
             <li>Every /bug, /error, /feature and /idea DMs every admin straight away (10 per person per hour at most).</li>
+            <li>Admins also get a message for each new sign-up (the first 20 a day) and a <b>9pm summary</b>: who joined, plans posted, rides matched and done, asks nobody took, new places, and anything worth a look.</li>
             <li><b>Group messages</b> (matches, early birds, floaters, milestones) are saved on the dashboard, ready to copy, since there&apos;s no village group for now.</li>
             <li><b>Fake accounts:</b> Telegram bot accounts are refused; the dashboard&apos;s “Worth a look” flags pairs riding together a lot, sign-up bursts and brand-new accounts riding a lot; an admin can set anyone to “blocked”.</li>
           </ul>

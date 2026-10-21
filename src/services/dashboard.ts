@@ -8,7 +8,7 @@ import { loadPlaces } from "./places";
 import { listReports } from "./reports";
 
 /** Signals of fake accounts or kaju farming, for a human to look at (nothing is automatic). */
-async function watchList(db: Db, now: Date, nameOf: (id: number) => string) {
+export async function watchList(db: Db, now: Date, nameOf: (id: number) => string) {
   const dayAgo = new Date(now.getTime() - 24 * 3600_000);
   const [pairs, bursts, fresh] = await Promise.all([
     db.select({ a: sql<number>`least(${rides.pilotId}, ${rides.hitcherId})`, b: sql<number>`greatest(${rides.pilotId}, ${rides.hitcherId})`, n: sql<number>`count(*)::int` })

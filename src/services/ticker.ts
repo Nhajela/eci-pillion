@@ -11,6 +11,7 @@ import { expirePlans } from "./plans";
 import { loadPlaces } from "./places";
 import { syncEvents } from "./events";
 import { followUpAsks } from "./followups";
+import { dailyDigest } from "./admin-alerts";
 import { awardWinners, computeWinners, namesFor, PRIZE_KAJU, PRIZES, PRIZES_ON } from "./prizes";
 
 export { once } from "./once";
@@ -55,6 +56,7 @@ export async function tick(db: Db, n: Notifier, now: Date) {
   const minute = istMinuteOfDay(now);
   const day = istDay(now);
   if (minute >= 8 * 60 && minute < 8 * 60 + 30 && (await once(db, `morning:${day}`))) await n.announce(pick(LINES.morning, {}));
+  if (minute >= 21 * 60 && (await once(db, `digest:${day}`))) await dailyDigest(db, n, now);
   if (PRIZES_ON && minute >= 21 * 60 && (await once(db, `prizes:${day}`))) await postPrizes(db, n, day, now);
 }
 

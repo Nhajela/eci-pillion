@@ -15,6 +15,7 @@ import { findOrAddPlace, loadPlaces, pinPlace } from "@/services/places";
 import { fileReport, type ReportKind } from "@/services/reports";
 import { isAdmin, isStaff } from "@/services/roles";
 import { leaveFor, upcomingEvents } from "@/services/events";
+import { notifySignup } from "@/services/admin-alerts";
 import { edgeEvents } from "@/db/schema";
 import { claimInvite, inviteByUsername, inviteLink, myInvites, noteInviter, shareUrl } from "@/services/invites";
 import { KAJU } from "@/lib/kaju";
@@ -513,6 +514,7 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
 async function onboarded(ctx: Ctx, chatId: number, user: User) {
   const got = await finishOnboarding(ctx.db, user.id, ctx.now);
   await claimInvite(ctx.db, ctx.n, user, ctx.now);
+  if (got) await notifySignup(ctx.db, ctx.n, user, ctx.now); // first time only
   const link = await webLink(ctx, user, "/avatar?welcome=1");
   if (!user.username) {
     await say(ctx, chatId, "Tip: set a Telegram <b>username</b> (Settings → Username) so the people you ride with can message you to sort the pickup.");
