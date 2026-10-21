@@ -1,8 +1,8 @@
 import { and, asc, gt, isNotNull, lt } from "drizzle-orm";
 import type { Db } from "@/db";
 import { edgeEvents } from "@/db/schema";
-import { looseName } from "@/lib/places";
-import { applyAliases, canonicalName, findOrAddPlace, findPlace } from "./places";
+import { looseName, placeById } from "@/lib/places";
+import { applyAliases, canonicalName, findOrAddPlace, findPlace, loadPlaces } from "./places";
 
 // Today's Edge City events (EdgeOS, read-only key in EDGEOS_KEY) as ride destinations: "the 7pm talk at Riva".
 
@@ -77,14 +77,19 @@ export async function syncEvents(db: Db, now: Date, f: Fetch = fetch) {
   return n;
 }
 
-/** Events you could ride to: starting from now (or started < 30 min ago) within `hours`, at a known place. */
+/**
+ * Events you could ride to: starting from now (or started < 30 min ago) within `hours`, at a known place that isn't a
+ * hub. Most events are at Riva or the Circle, and for those "Riva" is the destination; listing each one is noise.
+ */
 export async function upcomingEvents(db: Db, now: Date, hours = 12) {
-  return db
+  await loadPlaces(db);
+  const rows = await db
     .select()
     .from(edgeEvents)
     .where(and(isNotNull(edgeEvents.placeId), gt(edgeEvents.startAt, new Date(now.getTime() - 30 * 60_000)), lt(edgeEvents.startAt, new Date(now.getTime() + hours * 3600_000))))
     .orderBy(asc(edgeEvents.startAt))
-    .limit(20);
+    .limit(60);
+  return rows.filter((e) => placeById(e.placeId!)?.kind !== "hub").slice(0, 20);
 }
 
 /** When to leave for an event: 15 minutes before it starts (or now, if that's passed). */

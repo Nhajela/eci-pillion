@@ -434,7 +434,7 @@ async function onButton(ctx: Ctx, q: NonNullable<Update["callback_query"]>) {
         await afterErrand(ctx, chatId, user, w);
       } else if (b === "to" && c === "+ev") {
         const evs = await upcomingEvents(ctx.db, ctx.now);
-        if (!evs.length) await say(ctx, chatId, "I don't see any events in the next 12 hours. Pick a place instead:", placeGrid("w:to", { errand: w.kind === "request" }));
+        if (!evs.length) await say(ctx, chatId, "No events away from Riva and the Circle in the next 12 hours. Going to something at Riva or the Circle? Just pick it here:", placeGrid("w:to", { errand: w.kind === "request" }));
         else await say(ctx, chatId, "📅 Which one? I'll aim to get you there 15 minutes early.", evs.map((e) => [{ text: `${istHHMM(e.startAt)} ${e.title.slice(0, 30)} · ${placeName(e.placeId!)}`, data: `w:ev:${e.id}` }]));
       } else if (b === "ev") {
         const [e] = await ctx.db.select().from(edgeEvents).where(eq(edgeEvents.id, data.slice(5)));

@@ -78,7 +78,7 @@ describe("EdgeOS events", () => {
     }) as unknown as typeof fetch;
     expect(await syncEvents(db, T0, fake)).toBe(3);
     const evs = await upcomingEvents(db, T0);
-    expect(evs.map((e) => [e.title, e.placeId])).toEqual([["Regen Goa Daily Circle", "riva"], ["Grand Crypto", "kicks-coffee"]]);
+    expect(evs.map((e) => [e.title, e.placeId])).toEqual([["Grand Crypto", "kicks-coffee"]]); // the Riva one: just pick Riva
     expect(venueToName("The Circle.Work: Garden")).toBe("the Circle");
   });
 
