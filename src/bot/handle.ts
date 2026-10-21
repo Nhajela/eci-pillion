@@ -208,7 +208,7 @@ export async function handleUpdate(ctx: Ctx, u: Update) {
     }
     if (arg.startsWith("login_")) {
       const ok = await claimLogin(ctx.db, arg.slice(6), user.id, ctx.now);
-      await say(ctx, chatId, ok ? "✅ You're logged in. Head back to your browser." : "That login link expired. Tap Log in on the site again.");
+      await say(ctx, chatId, ok ? "✅ You're logged in on the website. Go back to it whenever you like.\n\nTip: everything there also works right here in this chat, no website needed." : "That login link expired. Tap Log in on the site again.");
     }
     if (!user.onboardedAt) return welcome(ctx, chatId, user);
     if (!arg.startsWith("login_")) return menu(ctx, chatId, user, `Welcome back, ${esc(user.name)}!`);

@@ -99,13 +99,13 @@ export default async function Home() {
             {user ? (
               <a className="btn" href="/home">Open my Pillion</a>
             ) : live ? (
-              <a className="btn" href={`https://t.me/${env.botUsername()}`}>Start on Telegram</a>
+              <a className="btn" href="/login">Log in with Telegram</a>
             ) : (
               <a className="btn" href="#how">Meet the three roles</a>
             )}
             <a className="btn ghost" href="/how-it-works">How it works</a>
           </div>
-          {live && !user && <p className="hint">Opens <b>@{env.botUsername()}</b>. No app, no password. Already in? <a href="/login">Log in on the web</a>.</p>}
+          {live && !user && <p className="hint">No password, just your Telegram. Or skip the website: chat with <a href={`https://t.me/${env.botUsername()}`}>@{env.botUsername()}</a> directly.</p>}
         </div>
       </header>
 

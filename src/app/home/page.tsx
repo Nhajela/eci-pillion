@@ -110,6 +110,11 @@ export default async function Home() {
           </section>
         )}
 
+        <section className="card bot-card">
+          <p><b>💬 You can also do all of this in the bot.</b> Ask for a ride, offer a seat, see who&apos;s going where and float, right in Telegram. Handy on the go.</p>
+          <a className="btn small" href={`https://t.me/${env.botUsername()}`}>Open @{env.botUsername()}</a>
+        </section>
+
         <section className="card plan-card" id="plan">
           <h2>Post a plan</h2>
           <PlanForm places={allPlaces().map((p) => ({ id: p.id, name: p.name, kind: p.kind }))} events={pickEvents} hasWheels={user.vehicle !== "none"} maxSeats={Math.max(1, Math.min(user.seats, maxSeats(user.vehicle)))} car={user.vehicle === "car"} />
