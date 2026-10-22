@@ -244,6 +244,17 @@ export default async function Home() {
             <a className="btn small ghost" href="https://github.com/Nhajela/eci-pillion/blob/main/CONTRIBUTING.md">How to contribute</a>
           </div>
         </div>
+        <div className="oss-card">
+          <h2>Also open: the ECI shuttles 🚌</h2>
+          <p>
+            The live Riva ↔ Circle shuttle tracker is open source too: the map, the Telegram bot, the driver app.
+            Fork it for your own event, or help us make it better.
+          </p>
+          <div className="beta-ctas">
+            <a className="btn small" href="https://github.com/Nhajela/eci-shuttle">⭐ Shuttles on GitHub</a>
+            <a className="btn small ghost" href="https://eci-shuttle.positivesumcompany.com">See it live</a>
+          </div>
+        </div>
       </section>
 
       <section className="faq" aria-labelledby="faq-h">
