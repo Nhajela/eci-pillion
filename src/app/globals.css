@@ -528,7 +528,6 @@ main.app .card h3 { margin: 18px 0 6px; font-size: 0.85rem; text-transform: uppe
   .beta-fab span { font-size: 1.3rem; }
 }
 .oss-card { background: #e6f4f3; border: 3px solid var(--ink); border-radius: var(--radius); box-shadow: 0 6px 0 var(--ink); padding: clamp(20px, 4vw, 32px); }
-.open-source { display: grid; gap: 22px; }
 .oss-card .beta-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .bot-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background: #e6f4f3; }
 .bot-card p { margin: 0; flex: 1 1 240px; }
